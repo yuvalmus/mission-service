@@ -1,5 +1,5 @@
-import { Mission, MissionBase } from '@models/mission.models';
-import { TransactionContext } from '@database/database.types';
+import { Mission, MissionBase } from 'models/mission.models';
+import { TransactionContext } from 'database/database.types';
 
 export interface MissionRepository {
   create(mission: Mission): Promise<Mission>;

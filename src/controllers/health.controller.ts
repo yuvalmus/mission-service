@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { HealthService } from '@services/health.service';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { HEALTH_STATUS } from '@constants/app.constants';
+import { HealthService } from 'services/health.service';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { HEALTH_STATUS } from 'constants/app.constants';
 
 export interface HealthController {
   healthz(req: Request, res: Response): void;

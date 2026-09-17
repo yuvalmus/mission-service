@@ -1,6 +1,6 @@
 import { ZodTypeAny } from 'zod';
-import { ENTITY_SEGMENTS, ENTITY_TYPES, EntityType } from '@constants/entity.constants';
-import { AnyEntity } from '@models/entity-union.models';
+import { ENTITY_SEGMENTS, ENTITY_TYPES, EntityType } from 'constants/entity.constants';
+import { AnyEntity } from 'models/entity-union.models';
 import {
   CircleDtoSchema,
   CorridorDtoSchema,
@@ -17,32 +17,32 @@ import {
   UpdatePolygonDtoSchema,
   UpdatePolylineDtoSchema,
   UpdateSectorDtoSchema,
-} from '@dtos/shapes.dtos';
+} from 'dtos/shapes.dtos';
 import {
   CreateEliahuDtoSchema,
   CreateLamineDtoSchema,
   CreateLandingZoneDtoSchema,
   CreateMessiDtoSchema,
-  CreateReconDtoSchema,
+  CreateIslandDtoSchema,
   CreateSymbolPointDtoSchema,
   CreateWptDtoSchema,
   EliahuDtoSchema,
   LamineDtoSchema,
   LandingZoneDtoSchema,
   MessiDtoSchema,
-  ReconDtoSchema,
+  IslandDtoSchema,
   SymbolPointDtoSchema,
   UpdateEliahuDtoSchema,
   UpdateLamineDtoSchema,
   UpdateLandingZoneDtoSchema,
   UpdateMessiDtoSchema,
-  UpdateReconDtoSchema,
+  UpdateIslandDtoSchema,
   UpdateSymbolPointDtoSchema,
   UpdateWptDtoSchema,
   WptDtoSchema,
-} from '@dtos/points.dtos';
-import * as shapes from '@mappers/shapes.mapper';
-import * as points from '@mappers/points.mapper';
+} from 'dtos/points.dtos';
+import * as shapes from 'mappers/shapes.mapper';
+import * as points from 'mappers/points.mapper';
 
 export interface EntityDefinition {
   entityType: EntityType;
@@ -153,14 +153,14 @@ export const ENTITY_DEFINITIONS: readonly EntityDefinition[] = [
     fromDto: points.eliahuFromDto as never,
   }),
   define({
-    entityType: ENTITY_TYPES.RECON,
-    createSchema: CreateReconDtoSchema,
-    updateSchema: UpdateReconDtoSchema,
-    dtoSchema: ReconDtoSchema,
-    fromCreateDto: points.reconFromCreateDto as never,
-    applyUpdate: points.applyReconUpdate as never,
-    toDto: points.reconToDto as never,
-    fromDto: points.reconFromDto as never,
+    entityType: ENTITY_TYPES.ISLAND,
+    createSchema: CreateIslandDtoSchema,
+    updateSchema: UpdateIslandDtoSchema,
+    dtoSchema: IslandDtoSchema,
+    fromCreateDto: points.islandFromCreateDto as never,
+    applyUpdate: points.applyIslandUpdate as never,
+    toDto: points.islandToDto as never,
+    fromDto: points.islandFromDto as never,
   }),
   define({
     entityType: ENTITY_TYPES.LAMINE,

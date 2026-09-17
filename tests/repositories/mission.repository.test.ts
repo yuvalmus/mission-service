@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
-import { createMongoMissionRepository } from '@repositories/mongo/mission.repository';
-import { MissionDocument } from '@repositories/mongo/mission.schema';
+import { createMongoMissionRepository } from 'repositories/mongo/mission.repository';
+import { MissionDocument } from 'repositories/mongo/mission.schema';
 import {
   FIXED_DATE,
   MISSION_ID,
@@ -22,9 +22,9 @@ const buildMissionDocument = (overrides: Partial<MissionDocument> = {}): Mission
   createdBy: 'tester',
   missionType: 'Training',
   password: 'secret',
-  attachedMissionId: null,
+  attachedMissionId: undefined,
   versionNumber: 1,
-  sonicProperties: null,
+  sonicProperties: undefined,
   ...overrides,
 });
 

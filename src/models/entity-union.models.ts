@@ -5,18 +5,18 @@ import {
   PolygonSchema,
   PolylineSchema,
   SectorSchema,
-} from '@models/shapes.models';
+} from 'models/shapes.models';
 import {
   EliahuSchema,
   LamineSchema,
   LandingZoneSchema,
   MessiSchema,
-  ReconSchema,
+  IslandSchema,
   SymbolPointSchema,
   Wpt,
   WptSchema,
-} from '@models/points.models';
-import { Route, RouteSchema } from '@models/route.models';
+} from 'models/points.models';
+import { Route, RouteSchema } from 'models/route.models';
 
 export const EntitySchema = z.discriminatedUnion('entityType', [
   CircleSchema,
@@ -30,7 +30,7 @@ export const EntitySchema = z.discriminatedUnion('entityType', [
   EliahuSchema,
   LamineSchema,
   MessiSchema,
-  ReconSchema,
+  IslandSchema,
   RouteSchema,
 ]);
 

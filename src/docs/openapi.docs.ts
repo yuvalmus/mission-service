@@ -1,10 +1,10 @@
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
-import { registry } from '@config/openapi.config';
-import { SERVICE } from '@constants/app.constants';
-import '@docs/mission.docs';
-import '@docs/health.docs';
-import '@docs/entity.docs';
-import '@docs/stake.docs';
+import { registry } from 'config/openapi.config';
+import { SERVICE } from 'constants/app.constants';
+import 'docs/mission.docs';
+import 'docs/health.docs';
+import 'docs/entity.docs';
+import 'docs/stake.docs';
 
 const OPENAPI_INFO = {
   OPENAPI_VERSION: '3.0.0',

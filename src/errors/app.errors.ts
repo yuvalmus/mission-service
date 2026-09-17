@@ -1,4 +1,4 @@
-import { HTTP_STATUS, HttpStatus } from '@constants/http.constants';
+import { HTTP_STATUS, HttpStatus } from 'constants/http.constants';
 
 export class AppError extends Error {
   readonly statusCode: HttpStatus;

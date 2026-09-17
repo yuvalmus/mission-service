@@ -1,30 +1,30 @@
 import { Request, Response } from 'express';
-import { StakeService } from '@services/stake.service';
-import { parseSquadron } from '@models/stake.models';
-import { toStakeDto } from '@mappers/stake.mapper';
-import { CreateStakeDto, SquadronParams } from '@dtos/stake.dtos';
-import { BadRequestError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { HTTP_STATUS } from '@constants/http.constants';
+import { StakeService } from 'services/stake.service';
+import { parsePatrick, Patrick } from 'models/stake.models';
+import { toStakeDto } from 'mappers/stake.mapper';
+import { CreateStakeDto, PatrickParams } from 'dtos/stake.dtos';
+import { BadRequestError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { HTTP_STATUS } from 'constants/http.constants';
 
 export interface StakeController {
-  getStakeOfSquadron(req: Request<SquadronParams>, res: Response): Promise<void>;
+  getStakeOfPatrick(req: Request<PatrickParams>, res: Response): Promise<void>;
   createStake(req: Request<unknown, unknown, CreateStakeDto>, res: Response): Promise<void>;
-  deleteStakeEntities(req: Request<SquadronParams>, res: Response): Promise<void>;
+  deleteStakeEntities(req: Request<PatrickParams>, res: Response): Promise<void>;
 }
 
-const parseSquadronOrThrow = (squadronName: string) => {
-  const squadron = parseSquadron(squadronName);
-  if (!squadron) {
-    throw new BadRequestError(ERROR_MESSAGES.INVALID_SQUADRON(squadronName));
+const parsePatrickOrThrow = (patrickName: string) => {
+  const patrick = parsePatrick(patrickName);
+  if (!patrick) {
+    throw new BadRequestError(ERROR_MESSAGES.INVALID_PATRICK(patrickName));
   }
-  return squadron;
+  return patrick;
 };
 
 export const createStakeController = (stakeService: StakeService): StakeController => ({
-  getStakeOfSquadron: async (req, res) => {
-    const squadron = parseSquadronOrThrow(req.params.squadronName);
-    const { stake, entities } = await stakeService.findStakeOfSquadron(squadron);
+  getStakeOfPatrick: async (req, res) => {
+    const patrick = parsePatrickOrThrow(req.params.patrickName);
+    const { stake, entities } = await stakeService.findStakeOfPatrick(patrick as Patrick);
     res.status(HTTP_STATUS.OK).json(toStakeDto(stake, entities));
   },
 
@@ -34,8 +34,8 @@ export const createStakeController = (stakeService: StakeService): StakeControll
   },
 
   deleteStakeEntities: async (req, res) => {
-    const squadron = parseSquadronOrThrow(req.params.squadronName);
-    const deleted = await stakeService.deleteStakeEntities(squadron);
+    const patrick = parsePatrickOrThrow(req.params.patrickName);
+    const deleted = await stakeService.deleteStakeEntities(patrick);
     res.status(deleted ? HTTP_STATUS.OK : HTTP_STATUS.NOT_FOUND).send();
-  },
+  }
 });

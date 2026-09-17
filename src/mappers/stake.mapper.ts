@@ -1,9 +1,9 @@
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { AnyEntity } from '@models/entity-union.models';
-import { Stake } from '@models/stake.models';
-import { CreateStakeDto, StakeDto, StakeEntitiesDto } from '@dtos/stake.dtos';
-import { getEntityDefinition } from '@mappers/entity.registry';
-import { routeFromDto, routeToDto } from '@mappers/route.mapper';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { AnyEntity } from 'models/entity-union.models';
+import { Stake } from 'models/stake.models';
+import { CreateStakeDto, StakeDto, StakeEntitiesDto } from 'dtos/stake.dtos';
+import { getEntityDefinition } from 'mappers/entity.registry';
+import { routeFromDto, routeToDto } from 'mappers/route.mapper';
 
 export const toStakeEntitiesDto = (entities: readonly AnyEntity[]): StakeEntitiesDto => {
   const dto: StakeEntitiesDto = {
@@ -50,8 +50,8 @@ export const toStakeEntitiesDto = (entities: readonly AnyEntity[]): StakeEntitie
 };
 
 export const toStakeDto = (stake: Stake, entities: readonly AnyEntity[]): StakeDto => ({
-  squadronId: stake.id,
-  squadronName: stake.squadronName,
+  patrickId: stake.id,
+  patrickName: stake.patrickName,
   versionNumber: stake.versionNumber,
   stakeEntities: toStakeEntitiesDto(entities),
 });

@@ -1,9 +1,9 @@
 import { Request } from 'express';
-import { createMissionController, MissionController } from '@controllers/mission.controller';
-import { MissionService } from '@services/mission.service';
-import { MergeMissionDto, MissionIdParams, SearchNameParams } from '@dtos/mission.dtos';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { BadRequestError } from '@errors/app.errors';
+import { createMissionController, MissionController } from 'controllers/mission.controller';
+import { MissionService } from 'services/mission.service';
+import { MergeMissionDto, MissionIdParams, SearchNameParams } from 'dtos/mission.dtos';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { BadRequestError } from 'errors/app.errors';
 import { createHttpContext } from '../fixtures/express.fixtures';
 import {
   MISSION_ID,

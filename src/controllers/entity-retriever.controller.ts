@@ -1,10 +1,10 @@
 import { Request, RequestHandler, Response } from 'express';
-import { EntityDefinition } from '@mappers/entity.registry';
-import { routeToRetrieveDto, routeToRetrieveNavigationDto } from '@mappers/route.mapper';
-import { EntityRetrieverService } from '@services/entity-retriever.service';
-import { RouteService } from '@services/route.service';
-import { EntityIdParams } from '@dtos/entity.dtos';
-import { HTTP_STATUS } from '@constants/http.constants';
+import { EntityDefinition } from 'mappers/entity.registry';
+import { routeToRetrieveDto, routeToRetrieveNavigationDto } from 'mappers/route.mapper';
+import { EntityRetrieverService } from 'services/entity-retriever.service';
+import { RouteService } from 'services/route.service';
+import { EntityIdParams } from 'dtos/entity.dtos';
+import { HTTP_STATUS } from 'constants/http.constants';
 
 export interface EntityRetrieverController {
   getFor(definition: EntityDefinition): RequestHandler<EntityIdParams>;

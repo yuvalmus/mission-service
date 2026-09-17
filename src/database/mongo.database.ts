@@ -1,6 +1,6 @@
 import mongoose, { Connection } from 'mongoose';
-import { Env } from '@config/env.config';
-import { DatabaseClient, TransactionContext, UnitOfWork } from '@database/database.types';
+import { Env } from 'config/env.config';
+import { DatabaseClient, TransactionContext, UnitOfWork } from 'database/database.types';
 
 export interface MongoDatabase {
   client: DatabaseClient;

@@ -1,6 +1,6 @@
-import { createErrorMiddleware } from '@middlewares/error.middleware';
-import { BadRequestError, DatabaseOperationError, NotFoundError } from '@errors/app.errors';
-import { HTTP_STATUS } from '@constants/http.constants';
+import { createErrorMiddleware } from 'middlewares/error.middleware';
+import { BadRequestError, DatabaseOperationError, NotFoundError } from 'errors/app.errors';
+import { HTTP_STATUS } from 'constants/http.constants';
 import { createHttpContext } from '../fixtures/express.fixtures';
 import { createLoggerMock } from '../fixtures/mission.fixtures';
 

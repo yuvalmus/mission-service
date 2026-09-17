@@ -1,7 +1,7 @@
-import { EntityType } from '@constants/entity.constants';
-import { AnyEntity } from '@models/entity-union.models';
-import { EntityRepository } from '@repositories/entity.repository';
-import { AppLogger } from '@utils/logger.util';
+import { EntityType } from 'constants/entity.constants';
+import { AnyEntity } from 'models/entity-union.models';
+import { EntityRepository } from 'repositories/entity.repository';
+import { AppLogger } from 'utils/logger.util';
 
 export interface EntityRetrieverService {
   findEntity(id: string): Promise<AnyEntity | null>;

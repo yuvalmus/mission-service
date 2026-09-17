@@ -1,8 +1,8 @@
 import { Request } from 'express';
-import { STAKE_PATH_MARKER } from '@constants/app.constants';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { BadRequestError } from '@errors/app.errors';
-import { isStakeCategory } from '@models/entity.models';
+import { STAKE_PATH_MARKER } from 'constants/app.constants';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { BadRequestError } from 'errors/app.errors';
+import { isStakeCategory } from 'models/entity.models';
 
 export const isStakePath = (req: Pick<Request, 'baseUrl' | 'path'>): boolean =>
   `${req.baseUrl}${req.path}`.includes(STAKE_PATH_MARKER);

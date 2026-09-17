@@ -1,4 +1,4 @@
-import { z } from '@config/openapi.config';
+import { z } from 'config/openapi.config';
 import {
   ELIAHU_CATEGORIES,
   ELIAHU_STATUSES,
@@ -11,12 +11,12 @@ import {
   NAME_MAX_LENGTHS,
   POINT_CATEGORIES,
   RADIUS_LIMITS,
-  RECON_CATEGORIES,
-  WPT_CATEGORIES,
-} from '@constants/entity.constants';
-import { KnownColorSchema } from '@models/entity.models';
-import { GeneralEntityInfoSchema, GeoCoordinateDtoSchema } from '@dtos/entity.dtos';
-import { entityNameSchema, radiusNmSchema } from '@dtos/shapes.dtos';
+  ISLAND_CATEGORIES,
+  WPT_CATEGORIES
+} from 'constants/entity.constants';
+import { KnownColorSchema } from 'models/entity.models';
+import { GeneralEntityInfoSchema, GeoCoordinateDtoSchema } from 'dtos/entity.dtos';
+import { entityNameSchema, radiusNmSchema } from 'dtos/shapes.dtos';
 
 const createCommonFields = (nameMaxLength?: number) => ({
   parentId: z.string().uuid(),
@@ -24,8 +24,8 @@ const createCommonFields = (nameMaxLength?: number) => ({
   name: entityNameSchema(nameMaxLength),
   remark: z.string(),
   isVisible: z.boolean(),
-  remoteId: z.number().nullish(),
-  remoteName: z.string().nullish(),
+  remoteId: z.number().optional(),
+  remoteName: z.string().optional()
 });
 
 const updateCommonFields = (nameMaxLength?: number) => ({
@@ -34,8 +34,8 @@ const updateCommonFields = (nameMaxLength?: number) => ({
   name: entityNameSchema(nameMaxLength),
   remark: z.string(),
   isVisible: z.boolean(),
-  remoteId: z.number(),
-  remoteName: z.string(),
+  remoteId: z.number().optional(),
+  remoteName: z.string()
 });
 
 const readCommonFields = {
@@ -43,12 +43,12 @@ const readCommonFields = {
   entityType: z.string(),
   source: z.string(),
   category: z.string(),
-  isVisible: z.boolean(),
+  isVisible: z.boolean()
 } as const;
 
 const readRemoteFields = {
-  remoteId: z.number(),
-  remoteName: z.string(),
+  remoteId: z.number().optional(),
+  remoteName: z.string().optional()
 } as const;
 
 export const CreateWptDtoSchema = z
@@ -56,7 +56,7 @@ export const CreateWptDtoSchema = z
     ...createCommonFields(NAME_MAX_LENGTHS.WPT),
     category: z.enum(WPT_CATEGORIES),
     altitudeFeet: z.number(),
-    position: GeoCoordinateDtoSchema,
+    position: GeoCoordinateDtoSchema
   })
   .openapi('CreateWptDto');
 
@@ -68,7 +68,7 @@ export const CreateRouteWptDtoSchema = z
     ...createCommonFields(NAME_MAX_LENGTHS.WPT),
     category: z.enum(WPT_CATEGORIES),
     altitudeFeet: z.number(),
-    position: GeoCoordinateDtoSchema,
+    position: GeoCoordinateDtoSchema
   })
   .openapi('CreateRouteWptDto');
 
@@ -79,7 +79,7 @@ export const UpdateWptDtoSchema = z
     ...updateCommonFields(NAME_MAX_LENGTHS.WPT),
     category: z.enum(WPT_CATEGORIES),
     altitudeFeet: z.number(),
-    position: GeoCoordinateDtoSchema,
+    position: GeoCoordinateDtoSchema
   })
   .openapi('UpdateWptDto');
 
@@ -90,7 +90,7 @@ export const WptDtoSchema = z
     ...readCommonFields,
     altitudeFeet: z.number(),
     position: GeoCoordinateDtoSchema,
-    ...readRemoteFields,
+    ...readRemoteFields
   })
   .openapi('WptDto');
 
@@ -101,7 +101,7 @@ export const CreateSymbolPointDtoSchema = z
     ...createCommonFields(),
     category: z.enum(POINT_CATEGORIES),
     altitudeFeet: z.number(),
-    position: GeoCoordinateDtoSchema,
+    position: GeoCoordinateDtoSchema
   })
   .openapi('CreateSymbolPointDto');
 
@@ -112,7 +112,7 @@ export const UpdateSymbolPointDtoSchema = z
     ...updateCommonFields(),
     category: z.enum(POINT_CATEGORIES),
     altitudeFeet: z.number(),
-    position: GeoCoordinateDtoSchema,
+    position: GeoCoordinateDtoSchema
   })
   .openapi('UpdateSymbolPointDto');
 
@@ -123,7 +123,7 @@ export const SymbolPointDtoSchema = z
     ...readCommonFields,
     altitudeFeet: z.number(),
     position: GeoCoordinateDtoSchema,
-    ...readRemoteFields,
+    ...readRemoteFields
   })
   .openapi('SymbolPointDto');
 
@@ -138,7 +138,7 @@ const landingZoneFields = {
   operatingCategory: z.enum(LZ_OPERATING_TYPES),
   reutCategory: z.enum(LZ_REUT_TYPES),
   dustRepair: z.number().int(),
-  magneticVariable: z.number(),
+  magneticVariable: z.number()
 } as const;
 
 export const CreateLandingZoneDtoSchema = z
@@ -146,7 +146,7 @@ export const CreateLandingZoneDtoSchema = z
     ...createCommonFields(NAME_MAX_LENGTHS.LANDING_ZONE),
     ...landingZoneFields,
     position: GeoCoordinateDtoSchema,
-    secondaryPosition: GeoCoordinateDtoSchema,
+    secondaryPosition: GeoCoordinateDtoSchema
   })
   .openapi('CreateLandingZoneDto');
 
@@ -157,7 +157,7 @@ export const UpdateLandingZoneDtoSchema = z
     ...updateCommonFields(NAME_MAX_LENGTHS.LANDING_ZONE),
     ...landingZoneFields,
     position: GeoCoordinateDtoSchema,
-    secondaryPosition: GeoCoordinateDtoSchema,
+    secondaryPosition: GeoCoordinateDtoSchema
   })
   .openapi('UpdateLandingZoneDto');
 
@@ -176,7 +176,7 @@ export const LandingZoneDtoSchema = z
     magneticVariable: z.number(),
     startNz: GeoCoordinateDtoSchema,
     endNz: GeoCoordinateDtoSchema,
-    ...readRemoteFields,
+    ...readRemoteFields
   })
   .openapi('LandingZoneDto');
 
@@ -192,7 +192,7 @@ export const CreateEliahuDtoSchema = z
     status: z.enum(ELIAHU_STATUSES),
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
-    showSightPresentation: z.boolean(),
+    showSightPresentation: z.boolean()
   })
   .openapi('CreateEliahuDto');
 
@@ -208,7 +208,7 @@ export const UpdateEliahuDtoSchema = z
     status: z.enum(ELIAHU_STATUSES),
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
-    showSightPresentation: z.boolean(),
+    showSightPresentation: z.boolean()
   })
   .openapi('UpdateEliahuDto');
 
@@ -224,16 +224,16 @@ export const EliahuDtoSchema = z
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
     showSightPresentation: z.boolean(),
-    ...readRemoteFields,
+    ...readRemoteFields
   })
   .openapi('EliahuDto');
 
 export type EliahuDto = z.infer<typeof EliahuDtoSchema>;
 
-export const CreateReconDtoSchema = z
+export const CreateIslandDtoSchema = z
   .object({
     ...createCommonFields(),
-    category: z.enum(RECON_CATEGORIES),
+    category: z.enum(ISLAND_CATEGORIES),
     altitudeFeet: z.number(),
     isFilled: z.boolean(),
     radiusNm: z.number().nonnegative(),
@@ -241,17 +241,17 @@ export const CreateReconDtoSchema = z
     position: GeoCoordinateDtoSchema,
     circleCenterPosition: GeoCoordinateDtoSchema,
     showLamine: z.boolean(),
-    showSecondaryCircle: z.boolean(),
+    showSecondaryCircle: z.boolean()
   })
-  .openapi('CreateReconDto');
+  .openapi('CreateIslandDto');
 
-export type CreateReconDto = z.infer<typeof CreateReconDtoSchema>;
+export type CreateIslandDto = z.infer<typeof CreateIslandDtoSchema>;
 
-export const UpdateReconDtoSchema = z
+export const UpdateIslandDtoSchema = z
   .object({
     id: z.string().uuid(),
     parentId: z.string().uuid(),
-    category: z.enum(RECON_CATEGORIES),
+    category: z.enum(ISLAND_CATEGORIES),
     altitudeFeet: z.number(),
     name: entityNameSchema(),
     remark: z.string(),
@@ -262,13 +262,13 @@ export const UpdateReconDtoSchema = z
     position: GeoCoordinateDtoSchema,
     circleCenterPosition: GeoCoordinateDtoSchema,
     showLamine: z.boolean(),
-    showSecondaryCircle: z.boolean(),
+    showSecondaryCircle: z.boolean()
   })
-  .openapi('UpdateReconDto');
+  .openapi('UpdateIslandDto');
 
-export type UpdateReconDto = z.infer<typeof UpdateReconDtoSchema>;
+export type UpdateIslandDto = z.infer<typeof UpdateIslandDtoSchema>;
 
-export const ReconDtoSchema = z
+export const IslandDtoSchema = z
   .object({
     ...readCommonFields,
     altitudeFeet: z.number(),
@@ -278,11 +278,11 @@ export const ReconDtoSchema = z
     position: GeoCoordinateDtoSchema,
     circleCenterPosition: GeoCoordinateDtoSchema,
     showLamine: z.boolean(),
-    showSecondaryCircle: z.boolean(),
+    showSecondaryCircle: z.boolean()
   })
-  .openapi('ReconDto');
+  .openapi('IslandDto');
 
-export type ReconDto = z.infer<typeof ReconDtoSchema>;
+export type IslandDto = z.infer<typeof IslandDtoSchema>;
 
 export const CreateLamineDtoSchema = z
   .object({
@@ -294,7 +294,7 @@ export const CreateLamineDtoSchema = z
     radiusNm: radiusNmSchema(RADIUS_LIMITS.LAMINE),
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
-    showSightPresentation: z.boolean(),
+    showSightPresentation: z.boolean()
   })
   .openapi('CreateLamineDto');
 
@@ -310,7 +310,7 @@ export const UpdateLamineDtoSchema = z
     radiusNm: radiusNmSchema(RADIUS_LIMITS.LAMINE),
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
-    showSightPresentation: z.boolean(),
+    showSightPresentation: z.boolean()
   })
   .openapi('UpdateLamineDto');
 
@@ -326,7 +326,7 @@ export const LamineDtoSchema = z
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
     showSightPresentation: z.boolean(),
-    ...readRemoteFields,
+    ...readRemoteFields
   })
   .openapi('LamineDto');
 
@@ -340,7 +340,7 @@ export const CreateMessiDtoSchema = z
     isFilled: z.boolean(),
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
-    showSightPresentation: z.boolean(),
+    showSightPresentation: z.boolean()
   })
   .openapi('CreateMessiDto');
 
@@ -354,7 +354,7 @@ export const UpdateMessiDtoSchema = z
     isFilled: z.boolean(),
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
-    showSightPresentation: z.boolean(),
+    showSightPresentation: z.boolean()
   })
   .openapi('UpdateMessiDto');
 
@@ -368,7 +368,7 @@ export const MessiDtoSchema = z
     position: GeoCoordinateDtoSchema,
     isOperational: z.boolean(),
     showSightPresentation: z.boolean(),
-    ...readRemoteFields,
+    ...readRemoteFields
   })
   .openapi('MessiDto');
 

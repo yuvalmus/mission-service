@@ -1,4 +1,4 @@
-import { NAME_GENERATION } from '@constants/app.constants';
+import { NAME_GENERATION } from 'constants/app.constants';
 
 export type NameFormatter = (count: number) => string;
 
@@ -20,7 +20,7 @@ export const generateNames = (
   const counter = { value: 1 };
 
   while (suggested.length < amount) {
-    const name = `${prefix}${format(counter.value)}`;
+    const name = prefix + `${format(counter.value)}`;
     counter.value += 1;
     if (!taken.has(name)) {
       suggested.push(name);

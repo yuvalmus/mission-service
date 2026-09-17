@@ -1,4 +1,4 @@
-import { loadEnv } from '@config/env.config';
+import { loadEnv } from 'config/env.config';
 import { createContainer } from './app.container';
 import { createApp } from './app';
 

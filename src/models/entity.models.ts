@@ -5,23 +5,24 @@ import {
   EntityType,
   LINE_STYLES,
   NAME_MAX_LENGTHS,
-  STAKE_CATEGORIES,
-} from '@constants/entity.constants';
-import { isKnownColor } from '@constants/color.constants';
-import { TimeInfoSchema, ActiveTimeSchema } from '@models/time.models';
+  STAKE_CATEGORIES
+} from 'constants/entity.constants';
+import { isKnownColor } from 'constants/color.constants';
+import { TimeInfoSchema, ActiveTimeSchema } from 'models/time.models';
 
-export const COLOR_VALIDATION_MESSAGE = (color: string) => `The color ${color} is not a valid Globus color`;
+export const COLOR_VALIDATION_MESSAGE = (color: string) =>
+  `The color ${color} is not a valid Universe color`;
 
 export const KnownColorSchema = z
   .string()
-  .refine(isKnownColor, (value) => ({ message: COLOR_VALIDATION_MESSAGE(value) }));
+  .refine(isKnownColor, value => ({ message: COLOR_VALIDATION_MESSAGE(value) }));
 
 export const EntitySourceSchema = z.enum(ENTITY_SOURCES);
 export const LineStyleSchema = z.enum(LINE_STYLES);
 
 export const createEntityBaseSchema = <T extends EntityType>(
   entityType: T,
-  nameMaxLength: number = NAME_MAX_LENGTHS.DEFAULT,
+  nameMaxLength: number = NAME_MAX_LENGTHS.DEFAULT
 ) =>
   z.object({
     id: z.string().uuid(),
@@ -31,15 +32,15 @@ export const createEntityBaseSchema = <T extends EntityType>(
     remark: z.string().default(''),
     source: EntitySourceSchema,
     timeInfo: TimeInfoSchema,
-    isVisible: z.boolean(),
+    isVisible: z.boolean()
   });
 
 export const RemoteEntitySchema = z.object({
-  remoteId: z.number().nonnegative().default(0),
-  remoteName: z.string().default(''),
+  remoteId: z.number().nonnegative().optional(),
+  remoteName: z.string().optional()
 });
 
-export const NullableActiveTimeSchema = ActiveTimeSchema.nullable().default(null);
+export const OptionalActiveTimeSchema = ActiveTimeSchema.optional();
 
 const STAKE_CATEGORY_SET: ReadonlySet<string> = new Set(STAKE_CATEGORIES);
 

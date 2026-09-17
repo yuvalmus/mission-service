@@ -3,20 +3,20 @@ import {
   AREA_CATEGORIES,
   ENTITY_TYPES,
   POLYLINE_CATEGORIES,
-  TIME_ZONE_AREAS,
-} from '@constants/entity.constants';
-import { GeoCoordinateSchema } from '@models/geo.models';
+  TIME_ZONE_AREAS
+} from 'constants/entity.constants';
+import { GeoCoordinateSchema } from 'models/geo.models';
 import {
   KnownColorSchema,
   LineStyleSchema,
-  NullableActiveTimeSchema,
   RemoteEntitySchema,
-  createEntityBaseSchema,
-} from '@models/entity.models';
+  createEntityBaseSchema
+} from 'models/entity.models';
+import { ActiveTimeSchema } from './time.models';
 
 export const AltitudeRangeSchema = z.object({
   minAltitudeFeet: z.number(),
-  maxAltitudeFeet: z.number(),
+  maxAltitudeFeet: z.number()
 });
 
 export type AltitudeRange = z.infer<typeof AltitudeRangeSchema>;
@@ -25,9 +25,9 @@ const areaEntityShape = {
   category: z.enum(AREA_CATEGORIES),
   color: KnownColorSchema,
   lineStyle: LineStyleSchema,
-  activeTime: NullableActiveTimeSchema,
+  activeTime: ActiveTimeSchema,
   altitudeRange: AltitudeRangeSchema,
-  isFilled: z.boolean().default(false),
+  isFilled: z.boolean().default(false)
 } as const;
 
 export const CircleSchema = createEntityBaseSchema(ENTITY_TYPES.CIRCLE)
@@ -35,7 +35,7 @@ export const CircleSchema = createEntityBaseSchema(ENTITY_TYPES.CIRCLE)
   .extend({
     ...areaEntityShape,
     radiusNm: z.number(),
-    position: GeoCoordinateSchema,
+    position: GeoCoordinateSchema
   });
 
 export type Circle = z.infer<typeof CircleSchema>;
@@ -47,7 +47,7 @@ export const SectorSchema = createEntityBaseSchema(ENTITY_TYPES.SECTOR)
     radiusNm: z.number(),
     position: GeoCoordinateSchema,
     startAngle: z.number(),
-    endAngle: z.number(),
+    endAngle: z.number()
   });
 
 export type Sector = z.infer<typeof SectorSchema>;
@@ -57,7 +57,7 @@ export const PolygonSchema = createEntityBaseSchema(ENTITY_TYPES.POLYGON)
   .extend({
     ...areaEntityShape,
     zone: z.enum(TIME_ZONE_AREAS),
-    coordinates: z.array(GeoCoordinateSchema),
+    coordinates: z.array(GeoCoordinateSchema)
   });
 
 export type Polygon = z.infer<typeof PolygonSchema>;
@@ -67,7 +67,7 @@ export const CorridorSchema = createEntityBaseSchema(ENTITY_TYPES.CORRIDOR)
   .extend({
     ...areaEntityShape,
     radiusNm: z.number(),
-    coordinates: z.array(GeoCoordinateSchema),
+    coordinates: z.array(GeoCoordinateSchema)
   });
 
 export type Corridor = z.infer<typeof CorridorSchema>;
@@ -78,8 +78,8 @@ export const PolylineSchema = createEntityBaseSchema(ENTITY_TYPES.POLYLINE)
     category: z.enum(POLYLINE_CATEGORIES),
     color: KnownColorSchema,
     lineStyle: LineStyleSchema,
-    activeTime: NullableActiveTimeSchema,
-    coordinates: z.array(GeoCoordinateSchema),
+    activeTime: ActiveTimeSchema,
+    coordinates: z.array(GeoCoordinateSchema)
   });
 
 export type Polyline = z.infer<typeof PolylineSchema>;

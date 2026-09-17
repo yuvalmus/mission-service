@@ -1,13 +1,13 @@
-import { Mission, MissionBase } from '@models/mission.models';
-import { CreateMissionDto, UpdateMissionDto } from '@dtos/mission.dtos';
-import { MissionRepository } from '@repositories/mission.repository';
-import { EntityRepository } from '@repositories/entity.repository';
-import { StakeRepository } from '@repositories/stake.repository';
-import { MissionService } from '@services/mission.service';
-import { CommonActionsService } from '@services/common-actions.service';
-import { RouteService } from '@services/route.service';
-import { TransactionContext, UnitOfWork } from '@database/database.types';
-import { AppLogger } from '@utils/logger.util';
+import { Mission, MissionBase } from 'models/mission.models';
+import { CreateMissionDto, UpdateMissionDto } from 'dtos/mission.dtos';
+import { MissionRepository } from 'repositories/mission.repository';
+import { EntityRepository } from 'repositories/entity.repository';
+import { StakeRepository } from 'repositories/stake.repository';
+import { MissionService } from 'services/mission.service';
+import { CommonActionsService } from 'services/common-actions.service';
+import { RouteService } from 'services/route.service';
+import { TransactionContext, UnitOfWork } from 'database/database.types';
+import { AppLogger } from 'utils/logger.util';
 
 export const MISSION_ID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
 export const OTHER_MISSION_ID = '9b2f6a10-1234-4c4d-8e11-aa22bb33cc44';
@@ -22,9 +22,9 @@ export const buildMission = (overrides: Partial<Mission> = {}): Mission => ({
   createdBy: 'tester',
   missionType: 'Training',
   password: 'secret',
-  attachedMissionId: null,
+  attachedMissionId: undefined,
   versionNumber: 1,
-  sonicProperties: null,
+  sonicProperties: undefined,
   ...overrides,
 });
 
@@ -39,8 +39,8 @@ export const buildCreateMissionDto = (overrides: Partial<CreateMissionDto> = {})
   createdBy: 'tester',
   missionType: 'Training',
   password: 'secret',
-  sonicProperties: null,
-  attachedMissionId: null,
+  sonicProperties: undefined,
+  attachedMissionId: undefined,
   ...overrides,
 });
 
@@ -51,7 +51,7 @@ export const buildUpdateMissionDto = (overrides: Partial<UpdateMissionDto> = {})
   createdBy: 'tester',
   missionType: 'Training',
   password: 'secret',
-  attachedMissionId: null,
+  attachedMissionId: undefined,
   ...overrides,
 });
 
@@ -82,7 +82,7 @@ export const createEntityRepositoryMock = (): jest.Mocked<EntityRepository> => (
 export const createStakeRepositoryMock = (): jest.Mocked<StakeRepository> => ({
   insert: jest.fn(),
   findById: jest.fn(),
-  findBySquadronName: jest.fn(),
+  findByPatrickName: jest.fn(),
   update: jest.fn(),
 });
 

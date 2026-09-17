@@ -1,21 +1,21 @@
 import { z } from 'zod';
-import { SQUADRONS } from '@constants/entity.constants';
+import { PATRICKS } from 'constants/entity.constants';
 
 export const STAKE_CONSTANTS = {
-  BASE_VERSION_NUMBER: 1,
+  BASE_VERSION_NUMBER: 1
 } as const;
 
-export const SquadronSchema = z.enum(SQUADRONS);
+export const PatrickSchema = z.enum(PATRICKS);
 
-export type Squadron = z.infer<typeof SquadronSchema>;
+export type Patrick = z.infer<typeof PatrickSchema>;
 
 export const StakeSchema = z.object({
   id: z.string().uuid(),
-  squadronName: SquadronSchema,
-  versionNumber: z.number().int(),
+  patrickName: PatrickSchema,
+  versionNumber: z.number().int()
 });
 
 export type Stake = z.infer<typeof StakeSchema>;
 
-export const parseSquadron = (value: string): Squadron | null =>
-  SQUADRONS.find((squadron) => squadron.toLowerCase() === value.toLowerCase()) ?? null;
+export const parsePatrick = (value: string): Patrick | null =>
+  PATRICKS.find(patrick => patrick.toLowerCase() === value.toLowerCase()) ?? null;

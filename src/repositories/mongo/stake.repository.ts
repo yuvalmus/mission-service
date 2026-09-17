@@ -1,18 +1,18 @@
 import { Connection, Model, Schema } from 'mongoose';
-import { COLLECTIONS } from '@constants/app.constants';
-import { Squadron, Stake } from '@models/stake.models';
-import { StakeRepository } from '@repositories/stake.repository';
+import { COLLECTIONS } from 'constants/app.constants';
+import { Patrick, Stake } from 'models/stake.models';
+import { StakeRepository } from 'repositories/stake.repository';
 
 export interface StakeDocument {
   _id: string;
-  squadronName: string;
+  patrickName: string;
   versionNumber: number;
 }
 
 const stakeSchema = new Schema<StakeDocument>(
   {
     _id: { type: String, required: true },
-    squadronName: { type: String, required: true, index: true },
+    patrickName: { type: String, required: true, index: true },
     versionNumber: { type: Number, required: true },
   },
   { collection: COLLECTIONS.STAKES, versionKey: false },
@@ -25,13 +25,13 @@ export const createStakeModel = (connection: Connection): Model<StakeDocument> =
 
 const toDomain = (doc: StakeDocument): Stake => ({
   id: doc._id,
-  squadronName: doc.squadronName as Squadron,
+  patrickName: doc.patrickName as Patrick,
   versionNumber: doc.versionNumber,
 });
 
 const toDocument = (stake: Stake): StakeDocument => ({
   _id: stake.id,
-  squadronName: stake.squadronName,
+  patrickName: stake.patrickName,
   versionNumber: stake.versionNumber,
 });
 
@@ -50,8 +50,8 @@ export const createMongoStakeRepository = ({ stakeModel }: MongoStakeRepositoryD
     return doc ? toDomain(doc) : null;
   },
 
-  findBySquadronName: async (squadronName) => {
-    const doc = await stakeModel.findOne({ squadronName }).lean<StakeDocument | null>();
+  findByPatrickName: async (patrickName) => {
+    const doc = await stakeModel.findOne({ patrickName }).lean<StakeDocument | null>();
     return doc ? toDomain(doc) : null;
   },
 

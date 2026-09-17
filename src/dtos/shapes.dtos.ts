@@ -1,5 +1,5 @@
 import { RefinementCtx } from 'zod';
-import { z } from '@config/openapi.config';
+import { z } from 'config/openapi.config';
 import {
   ALTITUDE_LIMITS,
   ANGLE_LIMITS,
@@ -10,10 +10,14 @@ import {
   POLYGON_LIMITS,
   POLYLINE_CATEGORIES,
   RADIUS_LIMITS,
-  TIME_ZONE_AREAS,
-} from '@constants/entity.constants';
-import { KnownColorSchema } from '@models/entity.models';
-import { ActiveTimeDtoSchema, GeneralEntityInfoSchema, GeoCoordinateDtoSchema } from '@dtos/entity.dtos';
+  TIME_ZONE_AREAS
+} from 'constants/entity.constants';
+import { KnownColorSchema } from 'models/entity.models';
+import {
+  ActiveTimeDtoSchema,
+  GeneralEntityInfoSchema,
+  GeoCoordinateDtoSchema
+} from 'dtos/entity.dtos';
 
 export const DTO_VALIDATION_MESSAGES = {
   NAME_TOO_LONG: (max: number) => `The name exceeds the maximum length of ${max} characters.`,
@@ -27,7 +31,7 @@ export const DTO_VALIDATION_MESSAGES = {
   START_ANGLE_RANGE: 'Start angle should be between 0-360',
   END_ANGLE_RANGE: 'End angle should be between 0-360',
   ANGLE_ORDER: 'Start angle must be smaller than end angle.',
-  RADIUS_RANGE: (min: number, max: number) => `value must be between ${min} and ${max}`,
+  RADIUS_RANGE: (min: number, max: number) => `value must be between ${min} and ${max}`
 } as const;
 
 export const entityNameSchema = (maxLength: number = NAME_MAX_LENGTHS.DEFAULT) =>
@@ -39,16 +43,19 @@ export const radiusNmSchema = (limits: { readonly MIN: number; readonly MAX: num
     .min(limits.MIN, DTO_VALIDATION_MESSAGES.RADIUS_RANGE(limits.MIN, limits.MAX))
     .max(limits.MAX, DTO_VALIDATION_MESSAGES.RADIUS_RANGE(limits.MIN, limits.MAX));
 
-const nullableDatetime = z.string().datetime({ offset: true }).nullish();
+const OptionalDatetime = z.string().datetime({ offset: true }).optional();
 
 interface ActiveWindowFields {
-  beginTime?: string | null;
-  endTime?: string | null;
+  beginTime?: string;
+  endTime?: string;
 }
 
 export const validateActiveWindow = (data: ActiveWindowFields, ctx: RefinementCtx): void => {
   if (data.beginTime && data.endTime && new Date(data.beginTime) >= new Date(data.endTime)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: DTO_VALIDATION_MESSAGES.ACTIVE_TIME_ORDER });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: DTO_VALIDATION_MESSAGES.ACTIVE_TIME_ORDER
+    });
   }
 };
 
@@ -60,18 +67,27 @@ interface AreaAltitudeFields {
 
 export const validateAreaAltitude = (data: AreaAltitudeFields, ctx: RefinementCtx): void => {
   if (data.minAltitudeFeet > data.maxAltitudeFeet) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: DTO_VALIDATION_MESSAGES.MIN_ABOVE_MAX_ALTITUDE });
-  }
-  if (data.category === 'TrainingLow' && data.maxAltitudeFeet > ALTITUDE_LIMITS.TRAINING_BOUNDARY_FEET) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: DTO_VALIDATION_MESSAGES.TRAINING_LOW_ALTITUDE(data.maxAltitudeFeet),
+      message: DTO_VALIDATION_MESSAGES.MIN_ABOVE_MAX_ALTITUDE
     });
   }
-  if (data.category === 'TrainingHigh' && data.minAltitudeFeet < ALTITUDE_LIMITS.TRAINING_BOUNDARY_FEET) {
+  if (
+    data.category === 'TrainingLow' &&
+    data.maxAltitudeFeet > ALTITUDE_LIMITS.TRAINING_BOUNDARY_FEET
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: DTO_VALIDATION_MESSAGES.TRAINING_HIGH_ALTITUDE(data.minAltitudeFeet),
+      message: DTO_VALIDATION_MESSAGES.TRAINING_LOW_ALTITUDE(data.maxAltitudeFeet)
+    });
+  }
+  if (
+    data.category === 'TrainingHigh' &&
+    data.minAltitudeFeet < ALTITUDE_LIMITS.TRAINING_BOUNDARY_FEET
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: DTO_VALIDATION_MESSAGES.TRAINING_HIGH_ALTITUDE(data.minAltitudeFeet)
     });
   }
 };
@@ -83,7 +99,10 @@ interface AngleFields {
 
 export const validateSectorAngles = (data: AngleFields, ctx: RefinementCtx): void => {
   if (data.startAngle < ANGLE_LIMITS.MIN || data.startAngle > ANGLE_LIMITS.MAX) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: DTO_VALIDATION_MESSAGES.START_ANGLE_RANGE });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: DTO_VALIDATION_MESSAGES.START_ANGLE_RANGE
+    });
   }
   if (data.endAngle < ANGLE_LIMITS.MIN || data.endAngle > ANGLE_LIMITS.MAX) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: DTO_VALIDATION_MESSAGES.END_ANGLE_RANGE });
@@ -99,8 +118,8 @@ const createCommonFields = (nameMaxLength?: number) => ({
   name: entityNameSchema(nameMaxLength),
   remark: z.string(),
   isVisible: z.boolean(),
-  remoteId: z.number().nullish(),
-  remoteName: z.string().nullish(),
+  remoteId: z.number().optional(),
+  remoteName: z.string().optional()
 });
 
 const updateCommonFields = (nameMaxLength?: number) => ({
@@ -110,22 +129,22 @@ const updateCommonFields = (nameMaxLength?: number) => ({
   remark: z.string(),
   isVisible: z.boolean(),
   remoteId: z.number(),
-  remoteName: z.string(),
+  remoteName: z.string()
 });
 
 const styledFields = {
   color: KnownColorSchema,
-  lineStyle: z.enum(LINE_STYLES),
+  lineStyle: z.enum(LINE_STYLES)
 } as const;
 
 const areaFields = {
   category: z.enum(AREA_CATEGORIES),
-  beginTime: nullableDatetime,
-  endTime: nullableDatetime,
+  beginTime: OptionalDatetime,
+  endTime: OptionalDatetime,
   minAltitudeFeet: z.number(),
   maxAltitudeFeet: z.number(),
   ...styledFields,
-  isFilled: z.boolean(),
+  isFilled: z.boolean()
 } as const;
 
 const readCommonFields = {
@@ -133,19 +152,19 @@ const readCommonFields = {
   entityType: z.string(),
   source: z.string(),
   isVisible: z.boolean(),
-  remoteId: z.number(),
-  remoteName: z.string(),
+  remoteId: z.number().optional(),
+  remoteName: z.string().optional()
 } as const;
 
 const readAreaFields = {
   ...readCommonFields,
   category: z.string(),
-  activeTime: ActiveTimeDtoSchema.nullable().default(null),
+  activeTime: ActiveTimeDtoSchema,
   minAltitudeFeet: z.number(),
   maxAltitudeFeet: z.number(),
   lineStyle: z.string(),
   color: z.string(),
-  isFilled: z.boolean(),
+  isFilled: z.boolean()
 } as const;
 
 const withAreaRefinements = <T extends z.ZodTypeAny>(schema: T) =>
@@ -159,8 +178,8 @@ export const CreateCircleDtoSchema = withAreaRefinements(
     ...createCommonFields(),
     ...areaFields,
     radiusNm: radiusNmSchema(RADIUS_LIMITS.AREA),
-    position: GeoCoordinateDtoSchema,
-  }),
+    position: GeoCoordinateDtoSchema
+  })
 ).openapi('CreateCircleDto');
 
 export type CreateCircleDto = z.infer<typeof CreateCircleDtoSchema>;
@@ -170,8 +189,8 @@ export const UpdateCircleDtoSchema = withAreaRefinements(
     ...updateCommonFields(),
     ...areaFields,
     radiusNm: radiusNmSchema(RADIUS_LIMITS.AREA),
-    position: GeoCoordinateDtoSchema,
-  }),
+    position: GeoCoordinateDtoSchema
+  })
 ).openapi('UpdateCircleDto');
 
 export type UpdateCircleDto = z.infer<typeof UpdateCircleDtoSchema>;
@@ -180,7 +199,7 @@ export const CircleDtoSchema = z
   .object({
     ...readAreaFields,
     radiusNm: z.number(),
-    position: GeoCoordinateDtoSchema,
+    position: GeoCoordinateDtoSchema
   })
   .openapi('CircleDto');
 
@@ -193,7 +212,7 @@ export const CreateSectorDtoSchema = z
     radiusNm: radiusNmSchema(RADIUS_LIMITS.AREA),
     position: GeoCoordinateDtoSchema,
     startAngle: z.number(),
-    endAngle: z.number(),
+    endAngle: z.number()
   })
   .superRefine((data, ctx) => {
     validateAreaAltitude(data, ctx);
@@ -211,7 +230,7 @@ export const UpdateSectorDtoSchema = z
     radiusNm: radiusNmSchema(RADIUS_LIMITS.AREA),
     position: GeoCoordinateDtoSchema,
     startAngle: z.number(),
-    endAngle: z.number(),
+    endAngle: z.number()
   })
   .superRefine((data, ctx) => {
     validateAreaAltitude(data, ctx);
@@ -228,7 +247,7 @@ export const SectorDtoSchema = z
     radiusNm: z.number(),
     position: GeoCoordinateDtoSchema,
     startAngle: z.number(),
-    endAngle: z.number(),
+    endAngle: z.number()
   })
   .openapi('SectorDto');
 
@@ -243,8 +262,8 @@ export const CreatePolygonDtoSchema = withAreaRefinements(
     ...createCommonFields(),
     ...areaFields,
     zone: z.enum(TIME_ZONE_AREAS),
-    coordinates: polygonCoordinates,
-  }),
+    coordinates: polygonCoordinates
+  })
 ).openapi('CreatePolygonDto');
 
 export type CreatePolygonDto = z.infer<typeof CreatePolygonDtoSchema>;
@@ -254,8 +273,8 @@ export const UpdatePolygonDtoSchema = withAreaRefinements(
     ...updateCommonFields(),
     ...areaFields,
     zone: z.enum(TIME_ZONE_AREAS),
-    coordinates: polygonCoordinates,
-  }),
+    coordinates: polygonCoordinates
+  })
 ).openapi('UpdatePolygonDto');
 
 export type UpdatePolygonDto = z.infer<typeof UpdatePolygonDtoSchema>;
@@ -264,7 +283,7 @@ export const PolygonDtoSchema = z
   .object({
     ...readAreaFields,
     zone: z.string(),
-    coordinates: z.array(GeoCoordinateDtoSchema),
+    coordinates: z.array(GeoCoordinateDtoSchema)
   })
   .openapi('PolygonDto');
 
@@ -275,8 +294,8 @@ export const CreateCorridorDtoSchema = withAreaRefinements(
     ...createCommonFields(),
     ...areaFields,
     radiusNm: radiusNmSchema(RADIUS_LIMITS.AREA),
-    coordinates: z.array(GeoCoordinateDtoSchema),
-  }),
+    coordinates: z.array(GeoCoordinateDtoSchema)
+  })
 ).openapi('CreateCorridorDto');
 
 export type CreateCorridorDto = z.infer<typeof CreateCorridorDtoSchema>;
@@ -286,8 +305,8 @@ export const UpdateCorridorDtoSchema = withAreaRefinements(
     ...updateCommonFields(),
     ...areaFields,
     radiusNm: radiusNmSchema(RADIUS_LIMITS.AREA),
-    coordinates: z.array(GeoCoordinateDtoSchema),
-  }),
+    coordinates: z.array(GeoCoordinateDtoSchema)
+  })
 ).openapi('UpdateCorridorDto');
 
 export type UpdateCorridorDto = z.infer<typeof UpdateCorridorDtoSchema>;
@@ -296,7 +315,7 @@ export const CorridorDtoSchema = z
   .object({
     ...readAreaFields,
     radiusNm: z.number(),
-    coordinates: z.array(GeoCoordinateDtoSchema),
+    coordinates: z.array(GeoCoordinateDtoSchema)
   })
   .openapi('CorridorDto');
 
@@ -306,10 +325,10 @@ export const CreatePolylineDtoSchema = z
   .object({
     ...createCommonFields(),
     category: z.enum(POLYLINE_CATEGORIES),
-    beginTime: nullableDatetime,
-    endTime: nullableDatetime,
+    beginTime: OptionalDatetime,
+    endTime: OptionalDatetime,
     ...styledFields,
-    coordinates: z.array(GeoCoordinateDtoSchema),
+    coordinates: z.array(GeoCoordinateDtoSchema)
   })
   .superRefine(validateActiveWindow)
   .openapi('CreatePolylineDto');
@@ -321,7 +340,7 @@ export const UpdatePolylineDtoSchema = z
     ...updateCommonFields(),
     category: z.enum(POLYLINE_CATEGORIES),
     ...styledFields,
-    coordinates: z.array(GeoCoordinateDtoSchema),
+    coordinates: z.array(GeoCoordinateDtoSchema)
   })
   .openapi('UpdatePolylineDto');
 
@@ -331,10 +350,10 @@ export const PolylineDtoSchema = z
   .object({
     ...readCommonFields,
     category: z.string(),
-    activeTime: ActiveTimeDtoSchema.nullable().default(null),
+    activeTime: ActiveTimeDtoSchema,
     lineStyle: z.string(),
     color: z.string(),
-    coordinates: z.array(GeoCoordinateDtoSchema),
+    coordinates: z.array(GeoCoordinateDtoSchema)
   })
   .openapi('PolylineDto');
 

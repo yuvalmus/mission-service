@@ -1,9 +1,9 @@
 import { Request } from 'express';
-import { createEntityRetrieverController } from '@controllers/entity-retriever.controller';
-import { getEntityDefinition } from '@mappers/entity.registry';
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { EntityIdParams } from '@dtos/entity.dtos';
+import { createEntityRetrieverController } from 'controllers/entity-retriever.controller';
+import { getEntityDefinition } from 'mappers/entity.registry';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { EntityIdParams } from 'dtos/entity.dtos';
 import { createHttpContext } from '../fixtures/express.fixtures';
 import {
   CIRCLE_ID,

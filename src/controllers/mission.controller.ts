@@ -1,24 +1,29 @@
 import { Request, Response } from 'express';
-import { MissionService } from '@services/mission.service';
-import { toBasicMissionDto, toMissionDto } from '@mappers/mission.mapper';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { MISSION_LAYERS, MissionLayer } from '@constants/entity.constants';
+import { MissionService } from 'services/mission.service';
+import { toBasicMissionDto, toMissionDto } from 'mappers/mission.mapper';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { MISSION_LAYERS, MissionLayer } from 'constants/entity.constants';
 import {
-  CreateMissionDto,
   MergeMissionDto,
   MissionDtoList,
   MissionIdListDto,
   MissionIdParams,
   SearchNameParams,
-  UpdateMissionDto,
-} from '@dtos/mission.dtos';
+  UpdateMissionDto
+} from 'dtos/mission.dtos';
 
 export interface MissionController {
   getMission(req: Request<MissionIdParams>, res: Response): Promise<void>;
   getAllBasic(req: Request, res: Response): Promise<void>;
-  getMissionsFromIds(req: Request<unknown, unknown, MissionIdListDto>, res: Response): Promise<void>;
-  getBasicMissionsFromIds(req: Request<unknown, unknown, MissionIdListDto>, res: Response): Promise<void>;
-  createMission(req: Request<unknown, unknown, CreateMissionDto>, res: Response): Promise<void>;
+  getMissionsFromIds(
+    req: Request<unknown, unknown, MissionIdListDto>,
+    res: Response
+  ): Promise<void>;
+  getBasicMissionsFromIds(
+    req: Request<unknown, unknown, MissionIdListDto>,
+    res: Response
+  ): Promise<void>;
+  createMission(req: Request, res: Response): Promise<void>;
   updateMission(req: Request<unknown, unknown, UpdateMissionDto>, res: Response): Promise<void>;
   deleteMission(req: Request<MissionIdParams>, res: Response): Promise<void>;
   cloneMission(req: Request<MissionIdParams>, res: Response): Promise<void>;
@@ -49,16 +54,29 @@ export const createMissionController = (missionService: MissionService): Mission
 
   getMissionsFromIds: async (req, res) => {
     const results = await missionService.retrieveAllInList(req.body);
-    res.status(HTTP_STATUS.OK).json(results.map(({ mission, entities }) => toMissionDto(mission, entities)));
+    res
+      .status(HTTP_STATUS.OK)
+      .json(results.map(({ mission, entities }) => toMissionDto(mission, entities)));
   },
 
   getBasicMissionsFromIds: async (req, res) => {
     const results = await missionService.retrieveAllInList(req.body);
-    res.status(HTTP_STATUS.OK).json(results.map(({ mission, entities }) => toMissionDto(mission, entities)));
+    res
+      .status(HTTP_STATUS.OK)
+      .json(results.map(({ mission, entities }) => toMissionDto(mission, entities)));
   },
 
   createMission: async (req, res) => {
-    const mission = await missionService.createMission(req.body);
+    const nextName = (await missionService.generateNextMissionName()).replace(/[""]/g, '');
+    const emptyMission = {
+      name: nextName,
+      comment: undefined,
+      createdBy: undefined,
+      missionType: undefined,
+      password: undefined,
+      sonicProperties: undefined
+    };
+    const mission = await missionService.createMission(emptyMission);
     res.status(HTTP_STATUS.OK).json(toMissionDto(mission));
   },
 
@@ -90,11 +108,13 @@ export const createMissionController = (missionService: MissionService): Mission
 
   importMissions: async (req, res) => {
     const imported = await missionService.importMissions(req.body);
-    res.status(HTTP_STATUS.OK).json(imported.map(({ mission, entities }) => toMissionDto(mission, entities)));
+    res
+      .status(HTTP_STATUS.OK)
+      .json(imported.map(({ mission, entities }) => toMissionDto(mission, entities)));
   },
 
   searchByName: async (req, res) => {
     const missions = await missionService.searchMissionsByName(req.params.name);
     res.status(HTTP_STATUS.OK).json(missions.map(toBasicMissionDto));
-  },
+  }
 });

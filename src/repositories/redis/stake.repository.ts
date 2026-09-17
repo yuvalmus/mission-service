@@ -1,7 +1,7 @@
 import { Redis } from 'ioredis';
-import { COLLECTIONS } from '@constants/app.constants';
-import { Stake, StakeSchema } from '@models/stake.models';
-import { StakeRepository } from '@repositories/stake.repository';
+import { COLLECTIONS } from 'constants/app.constants';
+import { Stake, StakeSchema } from 'models/stake.models';
+import { StakeRepository } from 'repositories/stake.repository';
 
 export interface RedisStakeRepositoryDeps {
   redis: Redis;
@@ -24,12 +24,12 @@ export const createRedisStakeRepository = ({ redis }: RedisStakeRepositoryDeps):
       return raw ? parseStake(raw) : null;
     },
 
-    findBySquadronName: async (squadronName) => {
+    findByPatrickName: async (patrickName) => {
       const rows = await redis.hgetall(COLLECTIONS.STAKES);
       return (
         Object.values(rows)
           .map(parseStake)
-          .find((stake) => stake.squadronName === squadronName) ?? null
+          .find((stake) => stake.patrickName === patrickName) ?? null
       );
     },
   };

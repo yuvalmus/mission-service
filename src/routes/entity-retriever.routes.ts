@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { EntityRetrieverController } from '@controllers/entity-retriever.controller';
-import { ENTITY_DEFINITIONS } from '@mappers/entity.registry';
-import { validate } from '@middlewares/validation.middleware';
-import { ENTITY_SEGMENTS, ENTITY_TYPES } from '@constants/entity.constants';
-import { EntityIdParamsSchema } from '@dtos/entity.dtos';
+import { EntityRetrieverController } from 'controllers/entity-retriever.controller';
+import { ENTITY_DEFINITIONS } from 'mappers/entity.registry';
+import { validate } from 'middlewares/validation.middleware';
+import { ENTITY_SEGMENTS, ENTITY_TYPES } from 'constants/entity.constants';
+import { EntityIdParamsSchema } from 'dtos/entity.dtos';
 
 const NAV_ROUTE_SEGMENT = 'nav-route';
 

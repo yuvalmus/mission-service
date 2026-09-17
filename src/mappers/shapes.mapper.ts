@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { createTimeInfo } from '@models/time.models';
-import { Circle, Corridor, Polygon, Polyline, Sector } from '@models/shapes.models';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { createTimeInfo } from 'models/time.models';
+import { Circle, Corridor, Polygon, Polyline, Sector } from 'models/shapes.models';
 import {
   CircleDto,
   CorridorDto,
@@ -17,8 +17,8 @@ import {
   UpdateCorridorDto,
   UpdatePolygonDto,
   UpdatePolylineDto,
-  UpdateSectorDto,
-} from '@dtos/shapes.dtos';
+  UpdateSectorDto
+} from 'dtos/shapes.dtos';
 import {
   activeTimeFromDto,
   activeTimeFromWindow,
@@ -26,10 +26,18 @@ import {
   fromTimeInfoDto,
   toActiveTimeDto,
   toGeneralInfo,
-  toGeoDto,
-} from '@mappers/entity.mapper';
+  toGeoDto
+} from 'mappers/entity.mapper';
 
-const createBaseFields = (dto: { parentId: string; source: string; name: string; remark: string; isVisible: boolean; remoteId?: number | null; remoteName?: string | null }) => ({
+const createBaseFields = (dto: {
+  parentId: string;
+  source: string;
+  name: string;
+  remark: string;
+  isVisible: boolean;
+  remoteId?: number | null;
+  remoteName?: string | null;
+}) => ({
   id: randomUUID(),
   parentId: dto.parentId,
   name: dto.name,
@@ -38,7 +46,7 @@ const createBaseFields = (dto: { parentId: string; source: string; name: string;
   timeInfo: createTimeInfo(),
   isVisible: dto.isVisible,
   remoteId: dto.remoteId ?? 0,
-  remoteName: dto.remoteName ?? '',
+  remoteName: dto.remoteName ?? ''
 });
 
 export const circleFromCreateDto = (dto: CreateCircleDto): Circle => ({
@@ -51,10 +59,14 @@ export const circleFromCreateDto = (dto: CreateCircleDto): Circle => ({
   altitudeRange: { minAltitudeFeet: dto.minAltitudeFeet, maxAltitudeFeet: dto.maxAltitudeFeet },
   isFilled: dto.isFilled,
   radiusNm: dto.radiusNm,
-  position: fromGeoDto(dto.position),
+  position: fromGeoDto(dto.position)
 });
 
-export const applyCircleUpdate = (circle: Circle, dto: UpdateCircleDto, now: Date = new Date()): Circle => ({
+export const applyCircleUpdate = (
+  circle: Circle,
+  dto: UpdateCircleDto,
+  now: Date = new Date()
+): Circle => ({
   ...circle,
   timeInfo: { ...circle.timeInfo, lastUpdateTime: now },
   category: dto.category,
@@ -69,7 +81,7 @@ export const applyCircleUpdate = (circle: Circle, dto: UpdateCircleDto, now: Dat
   radiusNm: dto.radiusNm,
   position: fromGeoDto(dto.position),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const circleToDto = (circle: Circle): CircleDto => ({
@@ -77,7 +89,7 @@ export const circleToDto = (circle: Circle): CircleDto => ({
   entityType: circle.entityType,
   source: circle.source,
   category: circle.category,
-  activeTime: toActiveTimeDto(circle.activeTime),
+  activeTime: toActiveTimeDto(circle.activeTime) ?? undefined,
   minAltitudeFeet: circle.altitudeRange.minAltitudeFeet,
   maxAltitudeFeet: circle.altitudeRange.maxAltitudeFeet,
   isVisible: circle.isVisible,
@@ -87,7 +99,7 @@ export const circleToDto = (circle: Circle): CircleDto => ({
   radiusNm: circle.radiusNm,
   position: toGeoDto(circle.position),
   remoteId: circle.remoteId,
-  remoteName: circle.remoteName,
+  remoteName: circle.remoteName
 });
 
 export const circleFromDto = (dto: CircleDto, parentId: string): Circle => ({
@@ -102,34 +114,38 @@ export const circleFromDto = (dto: CircleDto, parentId: string): Circle => ({
   isVisible: dto.isVisible,
   color: dto.color,
   lineStyle: dto.lineStyle as never,
-  activeTime: activeTimeFromDto(dto.activeTime),
+  activeTime: activeTimeFromDto(dto.activeTime) ?? { beginTime: undefined, endTime: undefined },
   altitudeRange: { minAltitudeFeet: dto.minAltitudeFeet, maxAltitudeFeet: dto.maxAltitudeFeet },
   isFilled: dto.isFilled,
   radiusNm: dto.radiusNm,
   position: fromGeoDto(dto.position),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const sectorFromCreateDto = (dto: CreateSectorDto): Sector => ({
   ...circleFromCreateDto({ ...dto } as unknown as CreateCircleDto),
   entityType: ENTITY_TYPES.SECTOR,
   startAngle: dto.startAngle,
-  endAngle: dto.endAngle,
+  endAngle: dto.endAngle
 });
 
-export const applySectorUpdate = (sector: Sector, dto: UpdateSectorDto, now: Date = new Date()): Sector => ({
+export const applySectorUpdate = (
+  sector: Sector,
+  dto: UpdateSectorDto,
+  now: Date = new Date()
+): Sector => ({
   ...sector,
   ...applyCircleUpdate(sector as unknown as Circle, { ...dto } as unknown as UpdateCircleDto, now),
   entityType: ENTITY_TYPES.SECTOR,
   startAngle: dto.startAngle,
-  endAngle: dto.endAngle,
+  endAngle: dto.endAngle
 });
 
 export const sectorToDto = (sector: Sector): SectorDto => ({
   ...circleToDto(sector as unknown as Circle),
   startAngle: sector.startAngle,
-  endAngle: sector.endAngle,
+  endAngle: sector.endAngle
 });
 
 export const sectorFromDto = (dto: SectorDto, parentId: string): Sector => ({
@@ -137,7 +153,7 @@ export const sectorFromDto = (dto: SectorDto, parentId: string): Sector => ({
   entityType: ENTITY_TYPES.SECTOR,
   category: dto.category as never,
   startAngle: dto.startAngle,
-  endAngle: dto.endAngle,
+  endAngle: dto.endAngle
 });
 
 export const polygonFromCreateDto = (dto: CreatePolygonDto): Polygon => ({
@@ -150,10 +166,14 @@ export const polygonFromCreateDto = (dto: CreatePolygonDto): Polygon => ({
   altitudeRange: { minAltitudeFeet: dto.minAltitudeFeet, maxAltitudeFeet: dto.maxAltitudeFeet },
   isFilled: dto.isFilled,
   zone: dto.zone,
-  coordinates: dto.coordinates.map(fromGeoDto),
+  coordinates: dto.coordinates.map(fromGeoDto)
 });
 
-export const applyPolygonUpdate = (polygon: Polygon, dto: UpdatePolygonDto, now: Date = new Date()): Polygon => ({
+export const applyPolygonUpdate = (
+  polygon: Polygon,
+  dto: UpdatePolygonDto,
+  now: Date = new Date()
+): Polygon => ({
   ...polygon,
   timeInfo: { ...polygon.timeInfo, lastUpdateTime: now },
   category: dto.category,
@@ -168,7 +188,7 @@ export const applyPolygonUpdate = (polygon: Polygon, dto: UpdatePolygonDto, now:
   zone: dto.zone,
   coordinates: dto.coordinates.map(fromGeoDto),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const polygonToDto = (polygon: Polygon): PolygonDto => ({
@@ -186,7 +206,7 @@ export const polygonToDto = (polygon: Polygon): PolygonDto => ({
   zone: polygon.zone,
   coordinates: polygon.coordinates.map(toGeoDto),
   remoteId: polygon.remoteId,
-  remoteName: polygon.remoteName,
+  remoteName: polygon.remoteName
 });
 
 export const polygonFromDto = (dto: PolygonDto, parentId: string): Polygon => ({
@@ -201,13 +221,13 @@ export const polygonFromDto = (dto: PolygonDto, parentId: string): Polygon => ({
   isVisible: dto.isVisible,
   color: dto.color,
   lineStyle: dto.lineStyle as never,
-  activeTime: activeTimeFromDto(dto.activeTime),
+  activeTime: activeTimeFromDto(dto.activeTime) ?? { beginTime: undefined, endTime: undefined },
   altitudeRange: { minAltitudeFeet: dto.minAltitudeFeet, maxAltitudeFeet: dto.maxAltitudeFeet },
   isFilled: dto.isFilled,
   zone: dto.zone as never,
   coordinates: dto.coordinates.map(fromGeoDto),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const corridorFromCreateDto = (dto: CreateCorridorDto): Corridor => ({
@@ -220,10 +240,14 @@ export const corridorFromCreateDto = (dto: CreateCorridorDto): Corridor => ({
   altitudeRange: { minAltitudeFeet: dto.minAltitudeFeet, maxAltitudeFeet: dto.maxAltitudeFeet },
   isFilled: dto.isFilled,
   radiusNm: dto.radiusNm,
-  coordinates: dto.coordinates.map(fromGeoDto),
+  coordinates: dto.coordinates.map(fromGeoDto)
 });
 
-export const applyCorridorUpdate = (corridor: Corridor, dto: UpdateCorridorDto, now: Date = new Date()): Corridor => ({
+export const applyCorridorUpdate = (
+  corridor: Corridor,
+  dto: UpdateCorridorDto,
+  now: Date = new Date()
+): Corridor => ({
   ...corridor,
   timeInfo: { ...corridor.timeInfo, lastUpdateTime: now },
   category: dto.category,
@@ -238,7 +262,7 @@ export const applyCorridorUpdate = (corridor: Corridor, dto: UpdateCorridorDto, 
   radiusNm: dto.radiusNm,
   coordinates: dto.coordinates.map(fromGeoDto),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const corridorToDto = (corridor: Corridor): CorridorDto => ({
@@ -246,7 +270,7 @@ export const corridorToDto = (corridor: Corridor): CorridorDto => ({
   entityType: corridor.entityType,
   source: corridor.source,
   category: corridor.category,
-  activeTime: toActiveTimeDto(corridor.activeTime),
+  activeTime: toActiveTimeDto(corridor.activeTime) ?? undefined,
   minAltitudeFeet: corridor.altitudeRange.minAltitudeFeet,
   maxAltitudeFeet: corridor.altitudeRange.maxAltitudeFeet,
   isVisible: corridor.isVisible,
@@ -256,7 +280,7 @@ export const corridorToDto = (corridor: Corridor): CorridorDto => ({
   radiusNm: corridor.radiusNm,
   coordinates: corridor.coordinates.map(toGeoDto),
   remoteId: corridor.remoteId,
-  remoteName: corridor.remoteName,
+  remoteName: corridor.remoteName
 });
 
 export const corridorFromDto = (dto: CorridorDto, parentId: string): Corridor => ({
@@ -271,13 +295,13 @@ export const corridorFromDto = (dto: CorridorDto, parentId: string): Corridor =>
   isVisible: dto.isVisible,
   color: dto.color,
   lineStyle: dto.lineStyle as never,
-  activeTime: activeTimeFromDto(dto.activeTime),
+  activeTime: activeTimeFromDto(dto.activeTime) ?? { beginTime: undefined, endTime: undefined },
   altitudeRange: { minAltitudeFeet: dto.minAltitudeFeet, maxAltitudeFeet: dto.maxAltitudeFeet },
   isFilled: dto.isFilled,
   radiusNm: dto.radiusNm,
   coordinates: dto.coordinates.map(fromGeoDto),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const polylineFromCreateDto = (dto: CreatePolylineDto): Polyline => ({
@@ -287,10 +311,14 @@ export const polylineFromCreateDto = (dto: CreatePolylineDto): Polyline => ({
   color: dto.color,
   lineStyle: dto.lineStyle,
   activeTime: activeTimeFromWindow(dto.beginTime, dto.endTime),
-  coordinates: dto.coordinates.map(fromGeoDto),
+  coordinates: dto.coordinates.map(fromGeoDto)
 });
 
-export const applyPolylineUpdate = (polyline: Polyline, dto: UpdatePolylineDto, now: Date = new Date()): Polyline => ({
+export const applyPolylineUpdate = (
+  polyline: Polyline,
+  dto: UpdatePolylineDto,
+  now: Date = new Date()
+): Polyline => ({
   ...polyline,
   timeInfo: { ...polyline.timeInfo, lastUpdateTime: now },
   category: dto.category,
@@ -301,7 +329,7 @@ export const applyPolylineUpdate = (polyline: Polyline, dto: UpdatePolylineDto, 
   color: dto.color,
   coordinates: dto.coordinates.map(fromGeoDto),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });
 
 export const polylineToDto = (polyline: Polyline): PolylineDto => ({
@@ -309,13 +337,13 @@ export const polylineToDto = (polyline: Polyline): PolylineDto => ({
   entityType: polyline.entityType,
   source: polyline.source,
   category: polyline.category,
-  activeTime: toActiveTimeDto(polyline.activeTime),
+  activeTime: toActiveTimeDto(polyline.activeTime) ?? undefined,
   isVisible: polyline.isVisible,
   lineStyle: polyline.lineStyle,
   color: polyline.color,
   coordinates: polyline.coordinates.map(toGeoDto),
   remoteId: polyline.remoteId,
-  remoteName: polyline.remoteName,
+  remoteName: polyline.remoteName
 });
 
 export const polylineFromDto = (dto: PolylineDto, parentId: string): Polyline => ({
@@ -330,8 +358,8 @@ export const polylineFromDto = (dto: PolylineDto, parentId: string): Polyline =>
   isVisible: dto.isVisible,
   color: dto.color,
   lineStyle: dto.lineStyle as never,
-  activeTime: activeTimeFromDto(dto.activeTime),
+  activeTime: activeTimeFromDto(dto.activeTime) ?? { beginTime: undefined, endTime: undefined },
   coordinates: dto.coordinates.map(fromGeoDto),
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName
 });

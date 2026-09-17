@@ -1,6 +1,6 @@
-import { EntityType } from '@constants/entity.constants';
-import { AnyEntity } from '@models/entity-union.models';
-import { TransactionContext } from '@database/database.types';
+import { EntityType } from 'constants/entity.constants';
+import { AnyEntity } from 'models/entity-union.models';
+import { TransactionContext } from 'database/database.types';
 
 export interface EntityRepository {
   insert(entity: AnyEntity, context?: TransactionContext): Promise<AnyEntity>;

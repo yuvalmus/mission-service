@@ -1,32 +1,32 @@
 import { randomUUID } from 'node:crypto';
-import { Mission, MissionBase, MISSION_CONSTANTS } from '@models/mission.models';
-import { AnyEntity } from '@models/entity-union.models';
-import { Route } from '@models/route.models';
-import { CreateMissionDto, MissionDto, UpdateMissionDto } from '@dtos/mission.dtos';
-import { MissionRepository } from '@repositories/mission.repository';
-import { EntityRepository } from '@repositories/entity.repository';
-import { UnitOfWork } from '@database/database.types';
-import { BadRequestError, NotFoundError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { NAME_GENERATION } from '@constants/app.constants';
+import { Mission, MissionBase, MISSION_CONSTANTS } from 'models/mission.models';
+import { AnyEntity } from 'models/entity-union.models';
+import { Route } from 'models/route.models';
+import { CreateMissionDto, MissionDto, UpdateMissionDto } from 'dtos/mission.dtos';
+import { MissionRepository } from 'repositories/mission.repository';
+import { EntityRepository } from 'repositories/entity.repository';
+import { UnitOfWork } from 'database/database.types';
+import { BadRequestError, NotFoundError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { NAME_GENERATION } from 'constants/app.constants';
 import {
   ENTITY_NAME_PREFIXES,
   ENTITY_TYPES,
   MISSION_LAYER_ENTITY_CATEGORIES,
   MissionLayer,
-} from '@constants/entity.constants';
+} from 'constants/entity.constants';
 import {
   MissionWithEntities,
   applyUpdateDto,
   createDtoToMission,
   isMissionUnchanged,
   missionFromDto,
-} from '@mappers/mission.mapper';
-import { cloneEntityToMission } from '@mappers/entity.mapper';
-import { generateNames, parenthesesFormatter, plainFormatter } from '@utils/name-generator.util';
-import { CommonActionsService } from '@services/common-actions.service';
-import { RouteService } from '@services/route.service';
-import { AppLogger } from '@utils/logger.util';
+} from 'mappers/mission.mapper';
+import { cloneEntityToMission } from 'mappers/entity.mapper';
+import { generateNames, parenthesesFormatter, plainFormatter } from 'utils/name-generator.util';
+import { CommonActionsService } from 'services/common-actions.service';
+import { RouteService } from 'services/route.service';
+import { AppLogger } from 'utils/logger.util';
 
 export interface MissionService {
   createMission(dto: CreateMissionDto): Promise<Mission>;

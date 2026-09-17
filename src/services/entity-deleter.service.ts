@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { ENTITY_TYPES, EntityType } from '@constants/entity.constants';
-import { Route } from '@models/route.models';
-import { Wpt } from '@models/points.models';
-import { isEntrecoteEntity } from '@models/entity.models';
-import { EntityRepository } from '@repositories/entity.repository';
-import { TransactionContext, UnitOfWork } from '@database/database.types';
-import { BadRequestError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { validateStakeCategory } from '@utils/category.util';
-import { CommonActionsService } from '@services/common-actions.service';
-import { EntityAdderService } from '@services/entity-adder.service';
-import { EntityRetrieverService } from '@services/entity-retriever.service';
-import { AppLogger } from '@utils/logger.util';
+import { ENTITY_TYPES, EntityType } from 'constants/entity.constants';
+import { Route } from 'models/route.models';
+import { Wpt } from 'models/points.models';
+import { isEntrecoteEntity } from 'models/entity.models';
+import { EntityRepository } from 'repositories/entity.repository';
+import { TransactionContext, UnitOfWork } from 'database/database.types';
+import { BadRequestError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { validateStakeCategory } from 'utils/category.util';
+import { CommonActionsService } from 'services/common-actions.service';
+import { EntityAdderService } from 'services/entity-adder.service';
+import { EntityRetrieverService } from 'services/entity-retriever.service';
+import { AppLogger } from 'utils/logger.util';
 
 export interface EntityDeleterService {
   deleteEntity(entityType: EntityType, missionId: string, id: string, isStakePath: boolean): Promise<boolean>;
@@ -82,7 +82,7 @@ export const createEntityDeleterService = ({
       return unitOfWork.run((context) => deleteStakeWpt(wpt, context));
     }
 
-    if (wpt.category === 'User' && wpt.connectedRoutes.length > 0) {
+    if (wpt.category === 'user' && wpt.connectedRoutes.length > 0) {
       const routes = (await entityRepository.findByType(ENTITY_TYPES.ROUTE)) as Route[];
       const connectedRouteNames = routes
         .filter((route) => wpt.connectedRoutes.includes(route.id))
@@ -123,7 +123,7 @@ export const createEntityDeleterService = ({
             logger.warn({ wptId, routeId: id }, 'Route wpt was not found during route deletion');
             continue;
           }
-          if (wpt.category === 'LinePoint' || (isEntrecoteEntity(wpt) && wpt.parentId === missionId)) {
+          if (wpt.category === 'linePoint' || (isEntrecoteEntity(wpt) && wpt.parentId === missionId)) {
             await deleteAndBump(wpt.id, missionId, context);
           } else {
             const connectedRoutes = [...wpt.connectedRoutes];

@@ -1,14 +1,14 @@
 import { Router } from 'express';
-import { DefaultNamesController } from '@controllers/default-names.controller';
-import { ENTITY_DEFINITIONS } from '@mappers/entity.registry';
-import { validate } from '@middlewares/validation.middleware';
+import { DefaultNamesController } from 'controllers/default-names.controller';
+import { ENTITY_DEFINITIONS } from 'mappers/entity.registry';
+import { validate } from 'middlewares/validation.middleware';
 import {
   ENTITY_NAME_PREFIXES,
   ENTITY_SEGMENTS,
   ENTITY_TYPES,
   ROUTE_WPT_NAME_PREFIX,
-} from '@constants/entity.constants';
-import { NamesParamsSchema } from '@dtos/entity.dtos';
+} from 'constants/entity.constants';
+import { NamesParamsSchema } from 'dtos/entity.dtos';
 
 const NAMES_PARAMS = '/:missionId/:amount?';
 const MISSION_NAMES_ROUTE = '/mission';

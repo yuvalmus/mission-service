@@ -1,8 +1,8 @@
 import { Redis } from 'ioredis';
-import { COLLECTIONS } from '@constants/app.constants';
-import { Mission, MissionBase, MissionSchema } from '@models/mission.models';
-import { MissionRepository } from '@repositories/mission.repository';
-import { escapeRegex } from '@utils/regex.util';
+import { COLLECTIONS } from 'constants/app.constants';
+import { Mission, MissionBase, MissionSchema } from 'models/mission.models';
+import { MissionRepository } from 'repositories/mission.repository';
+import { escapeRegex } from 'utils/regex.util';
 
 const parseMission = (raw: string): Mission => MissionSchema.parse(JSON.parse(raw));
 

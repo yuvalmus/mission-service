@@ -1,13 +1,13 @@
-import { z, registry } from '@config/openapi.config';
+import { z, registry } from 'config/openapi.config';
 import {
   CircleDtoSchema,
   CorridorDtoSchema,
   PolygonDtoSchema,
   PolylineDtoSchema,
   SectorDtoSchema,
-} from '@dtos/shapes.dtos';
-import { LandingZoneDtoSchema, WptDtoSchema } from '@dtos/points.dtos';
-import { RouteDtoSchema } from '@dtos/route.dtos';
+} from 'dtos/shapes.dtos';
+import { LandingZoneDtoSchema, WptDtoSchema } from 'dtos/points.dtos';
+import { RouteDtoSchema } from 'dtos/route.dtos';
 
 export const StakeEntitiesDtoSchema = z
   .object({
@@ -26,8 +26,8 @@ export type StakeEntitiesDto = z.infer<typeof StakeEntitiesDtoSchema>;
 
 export const StakeDtoSchema = z
   .object({
-    squadronId: z.string().uuid(),
-    squadronName: z.string(),
+    patrickId: z.string().uuid(),
+    patrickName: z.string(),
     versionNumber: z.number().int(),
     stakeEntities: StakeEntitiesDtoSchema,
   })
@@ -37,20 +37,20 @@ export type StakeDto = z.infer<typeof StakeDtoSchema>;
 
 export const CreateStakeDtoSchema = z
   .object({
-    squadronName: z.string(),
+    patrickName: z.string(),
     stakeEntities: StakeEntitiesDtoSchema,
   })
   .openapi('CreateStakeDto');
 
 export type CreateStakeDto = z.infer<typeof CreateStakeDtoSchema>;
 
-export const SquadronParamsSchema = z
+export const PatrickParamsSchema = z
   .object({
-    squadronName: z.string().min(1),
+    patrickName: z.string().min(1),
   })
-  .openapi('SquadronParams');
+  .openapi('PatrickParams');
 
-export type SquadronParams = z.infer<typeof SquadronParamsSchema>;
+export type PatrickParams = z.infer<typeof PatrickParamsSchema>;
 
 registry.register('StakeDto', StakeDtoSchema);
 registry.register('CreateStakeDto', CreateStakeDtoSchema);

@@ -1,8 +1,8 @@
 import { ErrorRequestHandler } from 'express';
-import { AppError } from '@errors/app.errors';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { AppLogger } from '@utils/logger.util';
+import { AppError } from 'errors/app.errors';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { AppLogger } from 'utils/logger.util';
 
 export interface ErrorDetails {
   statusCode: number;

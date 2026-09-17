@@ -1,8 +1,8 @@
 import { Redis } from 'ioredis';
-import { COLLECTIONS } from '@constants/app.constants';
-import { EntitySchema, AnyEntity } from '@models/entity-union.models';
-import { EntityRepository } from '@repositories/entity.repository';
-import { AppLogger } from '@utils/logger.util';
+import { COLLECTIONS } from 'constants/app.constants';
+import { EntitySchema, AnyEntity } from 'models/entity-union.models';
+import { EntityRepository } from 'repositories/entity.repository';
+import { AppLogger } from 'utils/logger.util';
 
 export interface RedisEntityRepositoryDeps {
   redis: Redis;

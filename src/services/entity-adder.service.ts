@@ -1,10 +1,10 @@
-import { AnyEntity } from '@models/entity-union.models';
-import { EntityRepository } from '@repositories/entity.repository';
-import { TransactionContext } from '@database/database.types';
-import { BadRequestError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { CommonActionsService } from '@services/common-actions.service';
-import { AppLogger } from '@utils/logger.util';
+import { AnyEntity } from 'models/entity-union.models';
+import { EntityRepository } from 'repositories/entity.repository';
+import { TransactionContext } from 'database/database.types';
+import { BadRequestError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { CommonActionsService } from 'services/common-actions.service';
+import { AppLogger } from 'utils/logger.util';
 
 export interface EntityAdderService {
   addEntity<T extends AnyEntity>(entity: T, parentId: string, context?: TransactionContext): Promise<T>;

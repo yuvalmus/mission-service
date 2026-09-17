@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { EntityUpdaterController } from '@controllers/entity-updater.controller';
-import { ENTITY_DEFINITIONS } from '@mappers/entity.registry';
-import { validate } from '@middlewares/validation.middleware';
-import { ENTITY_SEGMENTS, ENTITY_TYPES } from '@constants/entity.constants';
-import { CreateOrUpdateRouteDtoSchema } from '@dtos/route.dtos';
-import { UpdateBasicEntitiesDtoSchema, UpdateBasicEntityDtoSchema } from '@dtos/entity.dtos';
+import { EntityUpdaterController } from 'controllers/entity-updater.controller';
+import { ENTITY_DEFINITIONS } from 'mappers/entity.registry';
+import { validate } from 'middlewares/validation.middleware';
+import { ENTITY_SEGMENTS, ENTITY_TYPES } from 'constants/entity.constants';
+import { CreateOrUpdateRouteDtoSchema } from 'dtos/route.dtos';
+import { UpdateBasicEntitiesDtoSchema, UpdateBasicEntityDtoSchema } from 'dtos/entity.dtos';
 
 const VISIBILITY_ROUTES = {
   ENTITY: '/changeEntityVisibility',

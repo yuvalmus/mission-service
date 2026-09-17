@@ -1,7 +1,7 @@
-import { createEntityUpdaterService } from '@services/entity-updater.service';
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { BadRequestError } from '@errors/app.errors';
-import { toBasicEntityDto } from '@mappers/entity.mapper';
+import { createEntityUpdaterService } from 'services/entity-updater.service';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { BadRequestError } from 'errors/app.errors';
+import { toBasicEntityDto } from 'mappers/entity.mapper';
 import {
   MISSION_ID,
   createCommonActionsMock,
@@ -37,7 +37,7 @@ describe('entity-updater.service', () => {
       const circle = buildCircle();
       entityRetriever.findEntityOfType.mockResolvedValue(circle);
       entityRepository.isNameTaken.mockResolvedValue(false);
-      entityRepository.update.mockImplementation(async (entity) => entity);
+      entityRepository.update.mockImplementation(async (entity: any) => entity);
 
       const dto = {
         id: CIRCLE_ID,
@@ -89,7 +89,7 @@ describe('entity-updater.service', () => {
       const circle = buildCircle({ isVisible: true });
       entityRetriever.findEntity.mockResolvedValue(circle);
       entityRepository.isNameTaken.mockResolvedValue(false);
-      entityRepository.update.mockImplementation(async (entity) => entity);
+      entityRepository.update.mockImplementation(async (entity: any) => entity);
 
       const result = await service.changeEntityVisibility({
         entity: toBasicEntityDto(circle),
@@ -114,10 +114,10 @@ describe('entity-updater.service', () => {
       const route = buildRoute();
       const wpt = buildWpt();
       entityRetriever.findEntityOfType.mockResolvedValue(route);
-      entityRetriever.findEntity.mockImplementation(async (id) => (id === route.id ? route : wpt));
+      entityRetriever.findEntity.mockImplementation(async (id: string) => (id === route.id ? route : wpt));
       routeWptService.getRouteWptsAsBasicDtos.mockResolvedValue([toBasicEntityDto(wpt)]);
       entityRepository.isNameTaken.mockResolvedValue(false);
-      entityRepository.update.mockImplementation(async (entity) => entity);
+      entityRepository.update.mockImplementation(async (entity: any) => entity);
 
       await service.changeEntityVisibility({ entity: toBasicEntityDto(route), isVisible: false });
 
@@ -133,7 +133,7 @@ describe('entity-updater.service', () => {
       const circle = buildCircle();
       entityRetriever.findEntity.mockResolvedValue(circle);
       entityRepository.isNameTaken.mockResolvedValue(false);
-      entityRepository.update.mockImplementation(async (entity) => entity);
+      entityRepository.update.mockImplementation(async (entity: any) => entity);
 
       const result = await service.changeEntitiesVisibility({
         entities: [toBasicEntityDto(circle), toBasicEntityDto(circle)],

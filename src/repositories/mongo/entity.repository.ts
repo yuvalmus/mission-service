@@ -1,9 +1,9 @@
 import { ClientSession, Model } from 'mongoose';
-import { EntityType } from '@constants/entity.constants';
-import { AnyEntity } from '@models/entity-union.models';
-import { EntityRepository } from '@repositories/entity.repository';
-import { EntityDocument } from '@repositories/mongo/mission.schema';
-import { TransactionContext } from '@database/database.types';
+import { EntityType } from 'constants/entity.constants';
+import { AnyEntity } from 'models/entity-union.models';
+import { EntityRepository } from 'repositories/entity.repository';
+import { EntityDocument } from 'repositories/mongo/mission.schema';
+import { TransactionContext } from 'database/database.types';
 
 const toSession = (context?: TransactionContext): ClientSession | null =>
   (context?.raw as ClientSession | undefined) ?? null;

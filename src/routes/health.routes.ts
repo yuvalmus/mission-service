@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { HealthController } from '@controllers/health.controller';
-import { ROUTES } from '@constants/app.constants';
+import { HealthController } from 'controllers/health.controller';
+import { ROUTES } from 'constants/app.constants';
 
 export const createHealthRoutes = (controller: HealthController): Router => {
   const router = Router();

@@ -1,7 +1,7 @@
-import { createMissionService, MissionService } from '@services/mission.service';
-import { BadRequestError, NotFoundError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { NAME_GENERATION } from '@constants/app.constants';
+import { createMissionService, MissionService } from 'services/mission.service';
+import { BadRequestError, NotFoundError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { NAME_GENERATION } from 'constants/app.constants';
 import {
   MISSION_ID,
   MISSION_NAME,
@@ -179,7 +179,7 @@ describe('mission.service', () => {
       entityRepository.deleteById.mockResolvedValue(true);
       entityRepository.insert.mockImplementation(async (entity) => entity);
 
-      await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['Navigation']);
+      await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['navigation']);
 
       expect(entityRepository.deleteById).toHaveBeenCalledWith(currentWpt.id);
       expect(entityRepository.insert).toHaveBeenCalledTimes(1);
@@ -200,7 +200,7 @@ describe('mission.service', () => {
       );
       entityRepository.insert.mockImplementation(async (entity) => entity);
 
-      await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['UserItems']);
+      await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['userItems']);
 
       const inserted = entityRepository.insert.mock.calls[0]![0];
       expect(inserted.name).toBe('C002');
@@ -209,7 +209,7 @@ describe('mission.service', () => {
     it('returns null (no merge) when one of the missions is missing', async () => {
       missionRepository.findById.mockResolvedValue(null);
 
-      const result = await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['Navigation']);
+      const result = await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['navigation']);
 
       expect(result).toBeNull();
       expect(entityRepository.insert).not.toHaveBeenCalled();

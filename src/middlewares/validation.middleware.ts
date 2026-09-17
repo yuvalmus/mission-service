@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import { ZodError, ZodTypeAny } from 'zod';
-import { BadRequestError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
+import { BadRequestError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
 
 const REQUEST_PARTS = ['params', 'query', 'body'] as const;
 
@@ -15,7 +15,7 @@ const formatZodError = (part: RequestPart, error: ZodError): string =>
     .join('; ');
 
 export const validate = (schemas: ValidationSchemas): RequestHandler => (req, _res, next) => {
-  REQUEST_PARTS.forEach((part) => {
+   REQUEST_PARTS.forEach((part) => {
     const schema = schemas[part];
     if (!schema) return;
 

@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { EntityDeleterController } from '@controllers/entity-deleter.controller';
-import { ENTITY_DEFINITIONS } from '@mappers/entity.registry';
-import { validate } from '@middlewares/validation.middleware';
-import { ENTITY_SEGMENTS, ENTITY_TYPES } from '@constants/entity.constants';
-import { DeleteEntityParamsSchema } from '@dtos/entity.dtos';
+import { EntityDeleterController } from 'controllers/entity-deleter.controller';
+import { ENTITY_DEFINITIONS } from 'mappers/entity.registry';
+import { validate } from 'middlewares/validation.middleware';
+import { ENTITY_SEGMENTS, ENTITY_TYPES } from 'constants/entity.constants';
+import { DeleteEntityParamsSchema } from 'dtos/entity.dtos';
 
 const DELETE_PARAMS = '/:mission/:id';
 

@@ -1,6 +1,6 @@
-import { z, registry } from '@config/openapi.config';
-import { ROUTES } from '@constants/app.constants';
-import { HTTP_STATUS } from '@constants/http.constants';
+import { z, registry } from 'config/openapi.config';
+import { ROUTES } from 'constants/app.constants';
+import { HTTP_STATUS } from 'constants/http.constants';
 
 const TAGS = { HEALTH: 'Health' } as const;
 

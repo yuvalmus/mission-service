@@ -1,6 +1,6 @@
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
-import { SERVICE, STATIONS } from '@constants/app.constants';
+import { SERVICE, STATIONS } from 'constants/app.constants';
 
 const ENV_DEFAULTS = {
   PORT: 5000,

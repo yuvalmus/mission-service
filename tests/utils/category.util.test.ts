@@ -1,6 +1,6 @@
-import { isStakePath, validateStakeCategory } from '@utils/category.util';
-import { BadRequestError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
+import { isStakePath, validateStakeCategory } from 'utils/category.util';
+import { BadRequestError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
 
 describe('category.util', () => {
   describe('isStakePath', () => {

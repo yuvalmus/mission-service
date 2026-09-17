@@ -3,8 +3,8 @@ import {
   paddedFormatter,
   parenthesesFormatter,
   plainFormatter,
-} from '@utils/name-generator.util';
-import { NAME_GENERATION } from '@constants/app.constants';
+} from 'utils/name-generator.util';
+import { NAME_GENERATION } from 'constants/app.constants';
 
 describe('name-generator.util', () => {
   it('generates padded entity names by default', () => {

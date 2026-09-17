@@ -10,15 +10,15 @@ import {
   LZ_REUT_TYPES,
   NAME_MAX_LENGTHS,
   POINT_CATEGORIES,
-  RECON_CATEGORIES,
+  ISLAND_CATEGORIES,
   WPT_CATEGORIES,
-} from '@constants/entity.constants';
-import { GeoCoordinateSchema } from '@models/geo.models';
+} from 'constants/entity.constants';
+import { GeoCoordinateSchema } from 'models/geo.models';
 import {
   KnownColorSchema,
   RemoteEntitySchema,
   createEntityBaseSchema,
-} from '@models/entity.models';
+} from 'models/entity.models';
 
 export const WptSchema = createEntityBaseSchema(ENTITY_TYPES.NAVIGATION_WAY_POINT, NAME_MAX_LENGTHS.WPT)
   .merge(RemoteEntitySchema)
@@ -102,8 +102,8 @@ export const MessiSchema = createEntityBaseSchema(ENTITY_TYPES.MESSI, NAME_MAX_L
 
 export type Messi = z.infer<typeof MessiSchema>;
 
-export const ReconSchema = createEntityBaseSchema(ENTITY_TYPES.RECON).extend({
-  category: z.enum(RECON_CATEGORIES),
+export const IslandSchema = createEntityBaseSchema(ENTITY_TYPES.ISLAND).extend({
+  category: z.enum(ISLAND_CATEGORIES),
   altitudeFeet: z.number(),
   radiusNm: z.number(),
   secondaryRadiusNm: z.number(),
@@ -114,4 +114,4 @@ export const ReconSchema = createEntityBaseSchema(ENTITY_TYPES.RECON).extend({
   isFilled: z.boolean().default(false),
 });
 
-export type Recon = z.infer<typeof ReconSchema>;
+export type Island = z.infer<typeof IslandSchema>;

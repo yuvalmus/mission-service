@@ -1,6 +1,6 @@
-import { createEntityAdderService } from '@services/entity-adder.service';
-import { BadRequestError } from '@errors/app.errors';
-import { ERROR_MESSAGES } from '@constants/error.constants';
+import { createEntityAdderService } from 'services/entity-adder.service';
+import { BadRequestError } from 'errors/app.errors';
+import { ERROR_MESSAGES } from 'constants/error.constants';
 import {
   MISSION_ID,
   createCommonActionsMock,

@@ -1,9 +1,9 @@
 import { ClientSession, Model } from 'mongoose';
-import { Mission, MissionBase, MISSION_CONSTANTS } from '@models/mission.models';
-import { MissionRepository } from '@repositories/mission.repository';
-import { MissionDocument } from '@repositories/mongo/mission.schema';
-import { TransactionContext } from '@database/database.types';
-import { escapeRegex } from '@utils/regex.util';
+import { Mission, MissionBase, MISSION_CONSTANTS } from 'models/mission.models';
+import { MissionRepository } from 'repositories/mission.repository';
+import { MissionDocument } from 'repositories/mongo/mission.schema';
+import { TransactionContext } from 'database/database.types';
+import { escapeRegex } from 'utils/regex.util';
 
 const BASIC_PROJECTION = {
   timeInfo: 1,
@@ -12,7 +12,7 @@ const BASIC_PROJECTION = {
   createdBy: 1,
   missionType: 1,
   password: 1,
-  attachedMissionId: 1,
+  attachedMissionId: 1
 } as const;
 
 const toSession = (context?: TransactionContext): ClientSession | null =>
@@ -20,19 +20,19 @@ const toSession = (context?: TransactionContext): ClientSession | null =>
 
 const toBase = (doc: MissionDocument): MissionBase => ({
   id: doc._id,
-  timeInfo: doc.timeInfo ?? null,
+  timeInfo: doc.timeInfo,
   name: doc.name,
-  comment: doc.comment ?? null,
-  createdBy: doc.createdBy ?? null,
-  missionType: doc.missionType ?? null,
-  password: doc.password ?? null,
-  attachedMissionId: doc.attachedMissionId ?? null,
+  comment: doc.comment ?? '',
+  createdBy: doc.createdBy ?? '',
+  missionType: doc.missionType ?? '',
+  password: doc.password ?? '',
+  attachedMissionId: doc.attachedMissionId
 });
 
 const toDomain = (doc: MissionDocument): Mission => ({
   ...toBase(doc),
   versionNumber: doc.versionNumber ?? MISSION_CONSTANTS.BASE_VERSION_NUMBER,
-  sonicProperties: doc.sonicProperties ?? null,
+  sonicProperties: doc.sonicProperties ?? undefined
 });
 
 const toDocument = (mission: Mission): MissionDocument => ({
@@ -45,25 +45,27 @@ const toDocument = (mission: Mission): MissionDocument => ({
   password: mission.password,
   attachedMissionId: mission.attachedMissionId,
   versionNumber: mission.versionNumber,
-  sonicProperties: mission.sonicProperties,
+  sonicProperties: mission.sonicProperties ?? undefined
 });
 
 export interface MongoMissionRepositoryDeps {
   missionModel: Model<MissionDocument>;
 }
 
-export const createMongoMissionRepository = ({ missionModel }: MongoMissionRepositoryDeps): MissionRepository => ({
-  create: async (mission) => {
+export const createMongoMissionRepository = ({
+  missionModel
+}: MongoMissionRepositoryDeps): MissionRepository => ({
+  create: async mission => {
     await missionModel.create(toDocument(mission));
     return mission;
   },
 
-  findById: async (id) => {
+  findById: async id => {
     const doc = await missionModel.findById(id).lean<MissionDocument | null>();
     return doc ? toDomain(doc) : null;
   },
 
-  findByIds: async (ids) => {
+  findByIds: async ids => {
     const docs = await missionModel.find({ _id: { $in: [...ids] } }).lean<MissionDocument[]>();
     return docs.map(toDomain);
   },
@@ -74,23 +76,27 @@ export const createMongoMissionRepository = ({ missionModel }: MongoMissionRepos
   },
 
   findAllNames: async () => {
-    const docs = await missionModel.find({}, { name: 1 }).lean<Pick<MissionDocument, '_id' | 'name'>[]>();
-    return docs.map((doc) => doc.name);
+    const docs = await missionModel
+      .find({}, { name: 1 })
+      .lean<Pick<MissionDocument, '_id' | 'name'>[]>();
+    return docs.map(doc => doc.name);
   },
 
-  findIdByName: async (name) => {
-    const doc = await missionModel.findOne({ name }, { _id: 1 }).lean<Pick<MissionDocument, '_id'> | null>();
+  findIdByName: async name => {
+    const doc = await missionModel
+      .findOne({ name }, { _id: 1 })
+      .lean<Pick<MissionDocument, '_id'> | null>();
     return doc?._id ?? null;
   },
 
-  searchByName: async (name) => {
+  searchByName: async name => {
     const docs = await missionModel
       .find({ name: { $regex: escapeRegex(name), $options: 'i' } }, BASIC_PROJECTION)
       .lean<MissionDocument[]>();
     return docs.map(toBase);
   },
 
-  update: async (mission) => {
+  update: async mission => {
     await missionModel.replaceOne({ _id: mission.id }, toDocument(mission));
     return mission;
   },
@@ -98,5 +104,5 @@ export const createMongoMissionRepository = ({ missionModel }: MongoMissionRepos
   delete: async (id, context) => {
     const result = await missionModel.deleteOne({ _id: id }).session(toSession(context));
     return result.deletedCount > 0;
-  },
+  }
 });

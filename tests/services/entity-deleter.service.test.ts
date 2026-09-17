@@ -1,6 +1,6 @@
-import { createEntityDeleterService } from '@services/entity-deleter.service';
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { BadRequestError } from '@errors/app.errors';
+import { createEntityDeleterService } from 'services/entity-deleter.service';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { BadRequestError } from 'errors/app.errors';
 import {
   MISSION_ID,
   OTHER_MISSION_ID,
@@ -74,7 +74,7 @@ describe('entity-deleter.service', () => {
     });
 
     it('duplicates a stake wpt per referencing mission before deleting it', async () => {
-      const stakeWpt = buildWpt({ category: 'MRI', connectedRoutes: [ROUTE_ID] });
+      const stakeWpt = buildWpt({ category: 'mri', connectedRoutes: [ROUTE_ID] });
       const referencingRoute = buildRoute({ parentId: OTHER_MISSION_ID, wptsIds: [stakeWpt.id] });
       entityRetriever.findEntityOfType.mockResolvedValue(stakeWpt);
       entityRepository.findByType.mockResolvedValue([referencingRoute]);
@@ -101,8 +101,8 @@ describe('entity-deleter.service', () => {
 
   describe('deleteRoute', () => {
     it('deletes line-point wpts, disconnects other wpts and removes the route', async () => {
-      const linePoint = buildWpt({ category: 'LinePoint' });
-      const userWpt = buildWpt({ id: OTHER_MISSION_ID, category: 'User', connectedRoutes: [ROUTE_ID] });
+      const linePoint = buildWpt({ category: 'linePoint' });
+      const userWpt = buildWpt({ id: OTHER_MISSION_ID, category: 'user', connectedRoutes: [ROUTE_ID] });
       const route = buildRoute({ wptsIds: [linePoint.id, userWpt.id] });
 
       entityRetriever.findEntityOfType.mockImplementation(async (entityType, id) => {

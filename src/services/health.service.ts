@@ -1,5 +1,5 @@
-import { DatabaseClient } from '@database/database.types';
-import { HEALTH_STATUS } from '@constants/app.constants';
+import { DatabaseClient } from 'database/database.types';
+import { HEALTH_STATUS } from 'constants/app.constants';
 
 export interface HealthReport {
   status: (typeof HEALTH_STATUS)[keyof typeof HEALTH_STATUS];

@@ -1,9 +1,8 @@
-import { z, registry } from '@config/openapi.config';
-import { ROUTES } from '@constants/app.constants';
-import { HTTP_STATUS } from '@constants/http.constants';
+import { z, registry } from 'config/openapi.config';
+import { ROUTES } from 'constants/app.constants';
+import { HTTP_STATUS } from 'constants/http.constants';
 import {
   BasicMissionDtoSchema,
-  CreateMissionDtoSchema,
   ErrorDetailsDtoSchema,
   MergeMissionDtoSchema,
   MissionDtoListSchema,
@@ -11,8 +10,8 @@ import {
   MissionIdListDtoSchema,
   MissionIdParamsSchema,
   SearchNameParamsSchema,
-  UpdateMissionDtoSchema,
-} from '@dtos/mission.dtos';
+  UpdateMissionDtoSchema
+} from 'dtos/mission.dtos';
 import { ZodTypeAny } from 'zod';
 
 const TAGS = { MISSIONS: 'Missions' } as const;
@@ -22,12 +21,12 @@ const jsonContent = (schema: ZodTypeAny) => ({ 'application/json': { schema } })
 const badRequestResponse = {
   [HTTP_STATUS.BAD_REQUEST]: {
     description: 'Validation or domain error',
-    content: jsonContent(ErrorDetailsDtoSchema),
-  },
+    content: jsonContent(ErrorDetailsDtoSchema)
+  }
 } as const;
 
 const notFoundResponse = {
-  [HTTP_STATUS.NOT_FOUND]: { description: 'Mission not found' },
+  [HTTP_STATUS.NOT_FOUND]: { description: 'Mission not found' }
 } as const;
 
 registry.registerPath({
@@ -36,8 +35,11 @@ registry.registerPath({
   tags: [TAGS.MISSIONS],
   summary: 'Get all missions in basic form',
   responses: {
-    [HTTP_STATUS.OK]: { description: 'All missions', content: jsonContent(z.array(BasicMissionDtoSchema)) },
-  },
+    [HTTP_STATUS.OK]: {
+      description: 'All missions',
+      content: jsonContent(z.array(BasicMissionDtoSchema))
+    }
+  }
 });
 
 registry.registerPath({
@@ -49,8 +51,8 @@ registry.registerPath({
   responses: {
     [HTTP_STATUS.OK]: { description: 'The mission', content: jsonContent(MissionDtoSchema) },
     ...notFoundResponse,
-    ...badRequestResponse,
-  },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -60,9 +62,12 @@ registry.registerPath({
   summary: 'Search missions by name (case-insensitive substring)',
   request: { params: SearchNameParamsSchema },
   responses: {
-    [HTTP_STATUS.OK]: { description: 'Matching missions', content: jsonContent(z.array(BasicMissionDtoSchema)) },
-    ...badRequestResponse,
-  },
+    [HTTP_STATUS.OK]: {
+      description: 'Matching missions',
+      content: jsonContent(z.array(BasicMissionDtoSchema))
+    },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -73,8 +78,8 @@ registry.registerPath({
   request: { body: { content: jsonContent(MissionIdListDtoSchema) } },
   responses: {
     [HTTP_STATUS.OK]: { description: 'Missions', content: jsonContent(z.array(MissionDtoSchema)) },
-    ...badRequestResponse,
-  },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -85,8 +90,8 @@ registry.registerPath({
   request: { body: { content: jsonContent(MissionIdListDtoSchema) } },
   responses: {
     [HTTP_STATUS.OK]: { description: 'Missions', content: jsonContent(z.array(MissionDtoSchema)) },
-    ...badRequestResponse,
-  },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -98,8 +103,8 @@ registry.registerPath({
   responses: {
     [HTTP_STATUS.OK]: { description: 'The cloned mission', content: jsonContent(MissionDtoSchema) },
     ...notFoundResponse,
-    ...badRequestResponse,
-  },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -107,11 +112,13 @@ registry.registerPath({
   path: ROUTES.MISSIONS,
   tags: [TAGS.MISSIONS],
   summary: 'Create a mission',
-  request: { body: { content: jsonContent(CreateMissionDtoSchema) } },
   responses: {
-    [HTTP_STATUS.OK]: { description: 'The created mission', content: jsonContent(MissionDtoSchema) },
-    ...badRequestResponse,
-  },
+    [HTTP_STATUS.OK]: {
+      description: 'The created mission',
+      content: jsonContent(MissionDtoSchema)
+    },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -121,9 +128,12 @@ registry.registerPath({
   summary: 'Update a mission',
   request: { body: { content: jsonContent(UpdateMissionDtoSchema) } },
   responses: {
-    [HTTP_STATUS.OK]: { description: 'The updated mission', content: jsonContent(MissionDtoSchema) },
-    ...badRequestResponse,
-  },
+    [HTTP_STATUS.OK]: {
+      description: 'The updated mission',
+      content: jsonContent(MissionDtoSchema)
+    },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -135,8 +145,8 @@ registry.registerPath({
   responses: {
     [HTTP_STATUS.OK]: { description: 'The merged mission', content: jsonContent(MissionDtoSchema) },
     ...notFoundResponse,
-    ...badRequestResponse,
-  },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -146,9 +156,12 @@ registry.registerPath({
   summary: 'Import a list of missions with their entities',
   request: { body: { content: jsonContent(MissionDtoListSchema) } },
   responses: {
-    [HTTP_STATUS.OK]: { description: 'The imported missions', content: jsonContent(MissionDtoListSchema) },
-    ...badRequestResponse,
-  },
+    [HTTP_STATUS.OK]: {
+      description: 'The imported missions',
+      content: jsonContent(MissionDtoListSchema)
+    },
+    ...badRequestResponse
+  }
 });
 
 registry.registerPath({
@@ -160,6 +173,6 @@ registry.registerPath({
   responses: {
     [HTTP_STATUS.OK]: { description: 'Mission deleted' },
     ...notFoundResponse,
-    ...badRequestResponse,
-  },
+    ...badRequestResponse
+  }
 });

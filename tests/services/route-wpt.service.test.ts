@@ -1,5 +1,5 @@
-import { createRouteWptService } from '@services/route-wpt.service';
-import { BadRequestError } from '@errors/app.errors';
+import { createRouteWptService } from 'services/route-wpt.service';
+import { BadRequestError } from 'errors/app.errors';
 import {
   createCommonActionsMock,
   createEntityRepositoryMock,
@@ -59,7 +59,7 @@ describe('route-wpt.service', () => {
 
     it('updates an existing line point that belongs to this route', async () => {
       const route = buildRoute();
-      const existing = buildWpt({ category: 'LinePoint', connectedRoutes: [route.id] });
+      const existing = buildWpt({ category: 'linePoint', connectedRoutes: [route.id] });
       entityRepository.findByType.mockResolvedValue([existing]);
       entityRepository.update.mockImplementation(async (entity) => entity);
 
@@ -71,7 +71,7 @@ describe('route-wpt.service', () => {
 
     it('rejects a line point that belongs to a different route', async () => {
       const route = buildRoute();
-      const existing = buildWpt({ category: 'LinePoint', connectedRoutes: ['5e5f6071-5555-4666-8777-88889999aaab'] });
+      const existing = buildWpt({ category: 'linePoint', connectedRoutes: ['5e5f6071-5555-4666-8777-88889999aaab'] });
       entityRepository.findByType.mockResolvedValue([existing]);
 
       await expect(
@@ -81,18 +81,18 @@ describe('route-wpt.service', () => {
 
     it('rejects updating a permanent wpt whose data differs from the dto', async () => {
       const route = buildRoute();
-      const existing = buildWpt({ category: 'User', name: 'OTHER' });
+      const existing = buildWpt({ category: 'user', name: 'OTHER' });
       entityRepository.findByType.mockResolvedValue([existing]);
 
       await expect(
-        service.createWptsForRoute([buildCreateRouteWptDto({ category: 'User' })], route, context),
+        service.createWptsForRoute([buildCreateRouteWptDto({ category: 'user' })], route, context),
       ).rejects.toThrow(/cannot be updated/);
     });
 
     it('connects an unchanged permanent wpt to the route', async () => {
       const route = buildRoute();
-      const dto = buildCreateRouteWptDto({ category: 'User' });
-      const existing = buildWpt({ category: 'User', name: dto.name });
+      const dto = buildCreateRouteWptDto({ category: 'user' });
+      const existing = buildWpt({ category: 'user', name: dto.name });
       entityRepository.findByType.mockResolvedValue([existing]);
       entityRepository.update.mockImplementation(async (entity) => entity);
 
@@ -105,8 +105,8 @@ describe('route-wpt.service', () => {
 
   describe('removeWpts', () => {
     it('deletes dropped line points and disconnects dropped permanent wpts', async () => {
-      const linePoint = buildWpt({ category: 'LinePoint' });
-      const userWpt = buildWpt({ id: SECOND_WPT_ID, name: 'NV002', category: 'User', connectedRoutes: [] });
+      const linePoint = buildWpt({ category: 'linePoint' });
+      const userWpt = buildWpt({ id: SECOND_WPT_ID, name: 'NV002', category: 'user', connectedRoutes: [] });
       const route = buildRoute({ wptsIds: [linePoint.id, userWpt.id] });
       const dto = buildCreateOrUpdateRouteDto({ wpts: [] });
       entityRepository.findByType.mockResolvedValue([linePoint, userWpt]);
@@ -121,7 +121,7 @@ describe('route-wpt.service', () => {
     });
 
     it('keeps wpts that are still part of the updated route', async () => {
-      const linePoint = buildWpt({ category: 'LinePoint' });
+      const linePoint = buildWpt({ category: 'linePoint' });
       const route = buildRoute({ wptsIds: [linePoint.id] });
       const dto = buildCreateOrUpdateRouteDto();
       entityRepository.findByType.mockResolvedValue([linePoint]);

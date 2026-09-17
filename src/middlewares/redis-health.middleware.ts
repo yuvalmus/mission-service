@@ -1,9 +1,9 @@
 import { RequestHandler } from 'express';
-import { DatabaseClient } from '@database/database.types';
-import { ROUTES } from '@constants/app.constants';
-import { ERROR_MESSAGES } from '@constants/error.constants';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { AppLogger } from '@utils/logger.util';
+import { DatabaseClient } from 'database/database.types';
+import { ROUTES } from 'constants/app.constants';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { AppLogger } from 'utils/logger.util';
 
 const EXEMPT_PREFIXES = [ROUTES.HEALTHZ, ROUTES.READYZ, ROUTES.DOCS] as const;
 

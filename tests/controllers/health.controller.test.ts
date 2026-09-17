@@ -1,7 +1,7 @@
-import { createHealthController } from '@controllers/health.controller';
-import { HealthService } from '@services/health.service';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { HEALTH_STATUS, SERVICE } from '@constants/app.constants';
+import { createHealthController } from 'controllers/health.controller';
+import { HealthService } from 'services/health.service';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { HEALTH_STATUS, SERVICE } from 'constants/app.constants';
 import { createHttpContext } from '../fixtures/express.fixtures';
 
 describe('health.controller', () => {

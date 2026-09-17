@@ -1,6 +1,6 @@
 export const SERVICE = {
   NAME: 'mission-service',
-  TITLE: 'Globus Mission Service',
+  TITLE: 'Universe Mission Service',
 } as const;
 
 export const STATIONS = {

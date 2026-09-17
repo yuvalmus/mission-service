@@ -1,14 +1,14 @@
-import { Circle } from '@models/shapes.models';
-import { Wpt } from '@models/points.models';
-import { Route, RouteLeg } from '@models/route.models';
-import { CreateOrUpdateRouteDto } from '@dtos/route.dtos';
-import { CreateRouteWptDto } from '@dtos/points.dtos';
-import { CreateCircleDto } from '@dtos/shapes.dtos';
-import { EntityRetrieverService } from '@services/entity-retriever.service';
-import { EntityAdderService } from '@services/entity-adder.service';
-import { EntityUpdaterService } from '@services/entity-updater.service';
-import { EntityDeleterService } from '@services/entity-deleter.service';
-import { RouteWptService } from '@services/route-wpt.service';
+import { Circle } from 'models/shapes.models';
+import { Wpt } from 'models/points.models';
+import { Route, RouteLeg } from 'models/route.models';
+import { CreateOrUpdateRouteDto } from 'dtos/route.dtos';
+import { CreateRouteWptDto } from 'dtos/points.dtos';
+import { CreateCircleDto } from 'dtos/shapes.dtos';
+import { EntityRetrieverService } from 'services/entity-retriever.service';
+import { EntityAdderService } from 'services/entity-adder.service';
+import { EntityUpdaterService } from 'services/entity-updater.service';
+import { EntityDeleterService } from 'services/entity-deleter.service';
+import { RouteWptService } from 'services/route-wpt.service';
 import { MISSION_ID, FIXED_DATE } from './mission.fixtures';
 
 export const CIRCLE_ID = '0a1b2c3d-1111-4222-8333-444455556666';
@@ -20,54 +20,56 @@ export const OTHER_ROUTE_ID = '4e5f6071-5555-4666-8777-88889999aaaa';
 export const buildCircle = (overrides: Partial<Circle> = {}): Circle => ({
   id: CIRCLE_ID,
   parentId: MISSION_ID,
-  entityType: 'Circle',
+  entityType: 'circle',
   name: 'C001',
   remark: '',
-  source: 'Globus',
-  category: 'General',
+  source: 'universe',
+  category: 'general',
   timeInfo: { dateCreated: FIXED_DATE, lastUpdateTime: FIXED_DATE },
   isVisible: true,
   remoteId: 0,
   remoteName: '',
   color: 'Red',
-  lineStyle: 'ThickLine',
-  activeTime: { beginTime: null, endTime: null },
+  lineStyle: 'thickLine',
+  activeTime: { beginTime: undefined, endTime: undefined },
   altitudeRange: { minAltitudeFeet: 0, maxAltitudeFeet: 1000 },
   isFilled: false,
   radiusNm: 5,
   position: { latitude: 32, longitude: 34, datum: 'WGS84' },
-  ...overrides,
+  ...overrides
 });
 
-export const buildCreateCircleDto = (overrides: Partial<CreateCircleDto> = {}): CreateCircleDto => ({
+export const buildCreateCircleDto = (
+  overrides: Partial<CreateCircleDto> = {}
+): CreateCircleDto => ({
   parentId: MISSION_ID,
-  source: 'Globus',
-  category: 'General',
-  beginTime: null,
-  endTime: null,
+  source: 'universe',
+  category: 'general',
+  beginTime: undefined,
+  endTime: undefined,
   minAltitudeFeet: 0,
   maxAltitudeFeet: 1000,
   name: 'C001',
   remark: '',
   isVisible: true,
   color: 'Red',
-  lineStyle: 'ThickLine',
+  lineStyle: 'thickLine',
   isFilled: false,
   radiusNm: 5,
   position: { latitude: 32, longitude: 34, datum: 'WGS84' },
-  remoteId: null,
-  remoteName: null,
-  ...overrides,
+  remoteId: undefined,
+  remoteName: undefined,
+  ...overrides
 });
 
 export const buildWpt = (overrides: Partial<Wpt> = {}): Wpt => ({
   id: WPT_ID,
   parentId: MISSION_ID,
-  entityType: 'NavigationWayPoint',
+  entityType: 'navigationWayPoint',
   name: 'NV001',
   remark: '',
-  source: 'Globus',
-  category: 'User',
+  source: 'universe',
+  category: 'user',
   timeInfo: { dateCreated: FIXED_DATE, lastUpdateTime: FIXED_DATE },
   isVisible: true,
   remoteId: 0,
@@ -75,7 +77,7 @@ export const buildWpt = (overrides: Partial<Wpt> = {}): Wpt => ({
   altitudeFeet: 100,
   position: { latitude: 32, longitude: 34, datum: 'WGS84' },
   connectedRoutes: [],
-  ...overrides,
+  ...overrides
 });
 
 export const buildRouteLeg = (overrides: Partial<RouteLeg> = {}): RouteLeg => ({
@@ -86,89 +88,91 @@ export const buildRouteLeg = (overrides: Partial<RouteLeg> = {}): RouteLeg => ({
   legTimeMs: 60000,
   isManualLegTime: false,
   tas: 120,
-  zmmTime: null,
-  highestPoint: null,
+  zmmTime: undefined,
+  highestPoint: { altitudeFeet: 0, nz: { latitude: 32, longitude: 34, datum: 'WGS84' } },
   safetyAltitudeFeet: 500,
-  legOffsets: null,
-  turnPoint: null,
-  ...overrides,
+  legOffsets: {
+    dogHouseOffset: { offsetPixelsX: 0, offsetPixelsY: 0 },
+    timeTillZmmOffset: { offsetPixelsX: 0, offsetPixelsY: 0 }
+  },
+  turnPoint: undefined,
+  ...overrides
 });
 
 export const buildRoute = (overrides: Partial<Route> = {}): Route => ({
   id: ROUTE_ID,
   parentId: MISSION_ID,
-  entityType: 'Route',
+  entityType: 'route',
   name: 'RTE001',
   remark: '',
-  source: 'Globus',
-  category: 'NAV',
+  source: 'universe',
+  category: 'nav',
   timeInfo: { dateCreated: FIXED_DATE, lastUpdateTime: FIXED_DATE },
   isVisible: true,
   remoteId: 0,
   remoteName: '',
   color: 'Blue',
-  lineStyle: 'ThinLine',
+  lineStyle: 'thinLine',
   wptsIds: [WPT_ID, SECOND_WPT_ID],
   legs: [buildRouteLeg()],
   defaultTas: 120,
   isActive: false,
-  routeSource: 'SAMSON',
-  viewMode: 'Regular',
-  zmmWptId: null,
-  ...overrides,
+  routeSource: 'hair',
+  viewMode: 'regular',
+  zmmWptId: undefined,
+  ...overrides
 });
 
-export const buildCreateRouteWptDto = (overrides: Partial<CreateRouteWptDto> = {}): CreateRouteWptDto => ({
+export const buildCreateRouteWptDto = (
+  overrides: Partial<CreateRouteWptDto> = {}
+): CreateRouteWptDto => ({
   id: WPT_ID,
   parentId: MISSION_ID,
   name: 'NV001',
-  source: 'Globus',
-  category: 'LinePoint',
+  source: 'universe',
+  category: 'linePoint',
   altitudeFeet: 100,
   remark: '',
   isVisible: true,
   position: { latitude: 32, longitude: 34, datum: 'WGS84' },
-  remoteId: null,
-  remoteName: null,
-  ...overrides,
+  remoteId: undefined,
+  remoteName: undefined,
+  ...overrides
 });
 
 export const buildCreateOrUpdateRouteDto = (
-  overrides: Partial<CreateOrUpdateRouteDto> = {},
+  overrides: Partial<CreateOrUpdateRouteDto> = {}
 ): CreateOrUpdateRouteDto => ({
   id: ROUTE_ID,
   parentId: MISSION_ID,
   name: 'RTE001',
   remark: '',
   isActive: false,
-  source: 'Globus',
-  category: 'NAV',
-  routeSource: 'SAMSON',
-  viewMode: 'Regular',
+  source: 'universe',
+  category: 'nav',
+  routeSource: 'hair',
+  viewMode: 'reduced',
   color: 'Blue',
-  lineStyle: 'ThinLine',
+  lineStyle: 'thickLine',
   legs: [],
   isVisible: true,
-  wpts: [
-    buildCreateRouteWptDto(),
-    buildCreateRouteWptDto({ id: SECOND_WPT_ID, name: 'NV002' }),
-  ],
+  wpts: [buildCreateRouteWptDto(), buildCreateRouteWptDto({ id: SECOND_WPT_ID, name: 'NV002' })],
   defaultTas: 120,
-  remoteId: null,
-  remoteName: null,
-  zmmWptId: null,
-  ...overrides,
+  remoteId: undefined,
+  remoteName: undefined,
+  zmmWptId: undefined,
+  ...overrides
 });
 
 export const createEntityRetrieverMock = (): jest.Mocked<EntityRetrieverService> =>
   ({
     findEntity: jest.fn(),
-    findEntityOfType: jest.fn(),
+    findEntityOfType: jest.fn()
   }) as unknown as jest.Mocked<EntityRetrieverService>;
 
 export const createEntityAdderMock = (): jest.Mocked<EntityAdderService> =>
   ({
-    addEntity: jest.fn(),
+    addEntity: jest.fn()
   }) as unknown as jest.Mocked<EntityAdderService>;
 
 export const createEntityUpdaterMock = (): jest.Mocked<EntityUpdaterService> =>
@@ -176,12 +180,12 @@ export const createEntityUpdaterMock = (): jest.Mocked<EntityUpdaterService> =>
     updateEntity: jest.fn(),
     updateByType: jest.fn(),
     changeEntityVisibility: jest.fn(),
-    changeEntitiesVisibility: jest.fn(),
+    changeEntitiesVisibility: jest.fn()
   }) as unknown as jest.Mocked<EntityUpdaterService>;
 
 export const createEntityDeleterMock = (): jest.Mocked<EntityDeleterService> => ({
   deleteEntity: jest.fn(),
-  deleteRoute: jest.fn(),
+  deleteRoute: jest.fn()
 });
 
 export const createRouteWptServiceMock = (): jest.Mocked<RouteWptService> => ({
@@ -189,5 +193,5 @@ export const createRouteWptServiceMock = (): jest.Mocked<RouteWptService> => ({
   getRouteWptsAsBasicDtos: jest.fn(),
   removeWpts: jest.fn(),
   createWptsForRoute: jest.fn(),
-  updateExistingWpt: jest.fn(),
+  updateExistingWpt: jest.fn()
 });

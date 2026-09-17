@@ -1,7 +1,7 @@
-import { MissionRepository } from '@repositories/mission.repository';
-import { StakeRepository } from '@repositories/stake.repository';
-import { TransactionContext } from '@database/database.types';
-import { AppLogger } from '@utils/logger.util';
+import { MissionRepository } from 'repositories/mission.repository';
+import { StakeRepository } from 'repositories/stake.repository';
+import { TransactionContext } from 'database/database.types';
+import { AppLogger } from 'utils/logger.util';
 
 export interface CommonActionsService {
   validateParentExists(parentId: string): Promise<void>;

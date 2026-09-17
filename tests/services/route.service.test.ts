@@ -1,12 +1,12 @@
-import { createRouteService } from '@services/route.service';
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { ERROR_MESSAGES } from '@constants/error.constants';
+import { createRouteService } from 'services/route.service';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { ERROR_MESSAGES } from 'constants/error.constants';
 import {
   MISSION_ID,
   OTHER_MISSION_ID,
   createEntityRepositoryMock,
   createLoggerMock,
-  createUnitOfWorkMock,
+  createUnitOfWorkMock
 } from '../fixtures/mission.fixtures';
 import {
   ROUTE_ID,
@@ -19,7 +19,7 @@ import {
   createEntityAdderMock,
   createEntityRetrieverMock,
   createEntityUpdaterMock,
-  createRouteWptServiceMock,
+  createRouteWptServiceMock
 } from '../fixtures/entity.fixtures';
 
 describe('route.service', () => {
@@ -38,7 +38,7 @@ describe('route.service', () => {
     entityUpdater,
     routeWptService,
     unitOfWork,
-    logger,
+    logger
   });
 
   describe('getFullRoute', () => {
@@ -62,7 +62,9 @@ describe('route.service', () => {
     it('rejects a route with fewer than two wpts', async () => {
       const dto = buildCreateOrUpdateRouteDto({ wpts: [] });
 
-      await expect(service.addRoute(dto, MISSION_ID)).rejects.toThrow(ERROR_MESSAGES.ROUTE_MIN_WPTS);
+      await expect(service.addRoute(dto, MISSION_ID)).rejects.toThrow(
+        ERROR_MESSAGES.ROUTE_MIN_WPTS
+      );
     });
 
     it('rejects when a route with the same id already exists', async () => {
@@ -70,7 +72,7 @@ describe('route.service', () => {
       const dto = buildCreateOrUpdateRouteDto();
 
       await expect(service.addRoute(dto, MISSION_ID)).rejects.toThrow(
-        ERROR_MESSAGES.ROUTE_ALREADY_EXISTS(dto.id),
+        ERROR_MESSAGES.ROUTE_ALREADY_EXISTS(dto.id)
       );
     });
 
@@ -87,32 +89,46 @@ describe('route.service', () => {
             legTimeMs: 1,
             isManualLegTime: false,
             tas: 100,
-            zmmTime: null,
-            highestPoint: null,
+            zmmTime: undefined,
+            highestPoint: {
+              altitude: { feet: 0, meters: 0 },
+              nz: { datum: 'WGS84', latitude: 32, longitude: 35 }
+            },
             safetyAltitude: 0,
-            legOffsets: null,
-            turnPoint: null,
-          },
-        ],
+            legOffsets: {
+              dogHouseOffset: { offsetPixelsX: 0, offsetPixelsY: 0 },
+              timeTillZmmOffset: { offsetPixelsX: 0, offsetPixelsY: 0 }
+            },
+            turnPoint: undefined
+          }
+        ]
       });
 
       await expect(service.addRoute(dto, MISSION_ID)).rejects.toThrow(
-        ERROR_MESSAGES.ROUTE_CREATE_INVALID_LEGS,
+        ERROR_MESSAGES.ROUTE_CREATE_INVALID_LEGS
       );
     });
 
     it('creates the wpts and adds the route inside a unit of work', async () => {
       entityRetriever.findEntityOfType.mockResolvedValue(null);
       routeWptService.createWptsForRoute.mockImplementation(async (_wpts, route) => route);
-      entityAdder.addEntity.mockImplementation(async (entity) => entity);
+      entityAdder.addEntity.mockImplementation(async entity => entity);
       const dto = buildCreateOrUpdateRouteDto();
 
       const route = await service.addRoute(dto, MISSION_ID);
 
       expect(route.id).toBe(ROUTE_ID);
       expect(route.wptsIds).toEqual([WPT_ID, SECOND_WPT_ID]);
-      expect(routeWptService.createWptsForRoute).toHaveBeenCalledWith(dto.wpts, expect.anything(), {});
-      expect(entityAdder.addEntity).toHaveBeenCalledWith(expect.objectContaining({ id: ROUTE_ID }), MISSION_ID, {});
+      expect(routeWptService.createWptsForRoute).toHaveBeenCalledWith(
+        dto.wpts,
+        expect.anything(),
+        {}
+      );
+      expect(entityAdder.addEntity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: ROUTE_ID }),
+        MISSION_ID,
+        {}
+      );
     });
   });
 
@@ -121,7 +137,7 @@ describe('route.service', () => {
       entityRetriever.findEntityOfType.mockResolvedValue(null);
 
       await expect(service.updateRoute(buildCreateOrUpdateRouteDto())).rejects.toThrow(
-        /does not exist in the mission/,
+        /does not exist in the mission/
       );
     });
 
@@ -152,7 +168,7 @@ describe('route.service', () => {
 
       const dto = await service.cloneRoute(route);
 
-      expect(dto.wpts.map((wpt) => wpt.id)).toEqual([newWpt.id, newEnd.id]);
+      expect(dto.wpts.map(wpt => wpt.id)).toEqual([newWpt.id, newEnd.id]);
       expect(dto.legs[0]).toMatchObject({ startWpt: newWpt.id, endWpt: newEnd.id });
       expect(dto.zmmWptId).toBe(newEnd.id);
     });

@@ -1,12 +1,12 @@
 import { Request, RequestHandler, Response } from 'express';
-import { EntityDefinition } from '@mappers/entity.registry';
-import { routeToDto } from '@mappers/route.mapper';
-import { EntityUpdaterService } from '@services/entity-updater.service';
-import { RouteService } from '@services/route.service';
-import { CreateOrUpdateRouteDto } from '@dtos/route.dtos';
-import { UpdateBasicEntitiesDto, UpdateBasicEntityDto } from '@dtos/entity.dtos';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { validateCategoryPath } from '@utils/category.util';
+import { EntityDefinition } from 'mappers/entity.registry';
+import { routeToDto } from 'mappers/route.mapper';
+import { EntityUpdaterService } from 'services/entity-updater.service';
+import { RouteService } from 'services/route.service';
+import { CreateOrUpdateRouteDto } from 'dtos/route.dtos';
+import { UpdateBasicEntitiesDto, UpdateBasicEntityDto } from 'dtos/entity.dtos';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { validateCategoryPath } from 'utils/category.util';
 
 export interface EntityUpdaterController {
   updateFor(definition: EntityDefinition, validateCategory: boolean): RequestHandler;

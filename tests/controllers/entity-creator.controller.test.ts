@@ -1,9 +1,9 @@
-import { createEntityCreatorController } from '@controllers/entity-creator.controller';
-import { getEntityDefinition } from '@mappers/entity.registry';
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { BadRequestError } from '@errors/app.errors';
-import { ROUTES } from '@constants/app.constants';
+import { createEntityCreatorController } from 'controllers/entity-creator.controller';
+import { getEntityDefinition } from 'mappers/entity.registry';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { BadRequestError } from 'errors/app.errors';
+import { ROUTES } from 'constants/app.constants';
 import { createHttpContext } from '../fixtures/express.fixtures';
 import {
   buildCreateCircleDto,

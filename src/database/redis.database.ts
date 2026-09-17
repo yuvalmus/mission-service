@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis';
-import { Env } from '@config/env.config';
-import { DatabaseClient, UnitOfWork } from '@database/database.types';
+import { Env } from 'config/env.config';
+import { DatabaseClient, UnitOfWork } from 'database/database.types';
 
 export interface RedisDatabase {
   client: DatabaseClient;

@@ -1,9 +1,9 @@
 import { Request, RequestHandler, Response } from 'express';
-import { EntityType } from '@constants/entity.constants';
-import { EntityDeleterService } from '@services/entity-deleter.service';
-import { DeleteEntityParams } from '@dtos/entity.dtos';
-import { HTTP_STATUS } from '@constants/http.constants';
-import { isStakePath } from '@utils/category.util';
+import { EntityType } from 'constants/entity.constants';
+import { EntityDeleterService } from 'services/entity-deleter.service';
+import { DeleteEntityParams } from 'dtos/entity.dtos';
+import { HTTP_STATUS } from 'constants/http.constants';
+import { isStakePath } from 'utils/category.util';
 
 export interface EntityDeleterController {
   deleteFor(entityType: EntityType): RequestHandler<DeleteEntityParams>;

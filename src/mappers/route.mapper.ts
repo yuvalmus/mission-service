@@ -1,7 +1,7 @@
-import { ENTITY_TYPES } from '@constants/entity.constants';
-import { createTimeInfo } from '@models/time.models';
-import { Route, RouteLeg } from '@models/route.models';
-import { Wpt } from '@models/points.models';
+import { ENTITY_TYPES } from 'constants/entity.constants';
+import { createTimeInfo } from 'models/time.models';
+import { Route, RouteLeg } from 'models/route.models';
+import { Wpt } from 'models/points.models';
 import {
   CreateOrUpdateRouteDto,
   LegHighPointDto,
@@ -9,19 +9,20 @@ import {
   RetrieveRouteDto,
   RouteDto,
   RouteLegDto,
-  RouteNavLegDto,
-} from '@dtos/route.dtos';
-import { fromGeoDto, fromTimeInfoDto, toGeneralInfo, toGeoDto } from '@mappers/entity.mapper';
-import { wptAsCreateRouteWptDto } from '@mappers/points.mapper';
-import { FEET_IN_METER } from '@utils/geo.util';
+  RouteNavLegDto
+} from 'dtos/route.dtos';
+import { fromGeoDto, fromTimeInfoDto, toGeneralInfo, toGeoDto } from 'mappers/entity.mapper';
+import { wptAsCreateRouteWptDto } from 'mappers/points.mapper';
+import { FEET_IN_METER } from 'utils/geo.util';
 
-const highPointFromDto = (dto: LegHighPointDto | null | undefined): RouteLeg['highestPoint'] =>
-  dto ? { nz: fromGeoDto(dto.nz), altitudeFeet: dto.altitude.feet } : null;
+const highPointFromDto = (dto: LegHighPointDto): RouteLeg['highestPoint'] => {
+  return { nz: fromGeoDto(dto.nz), altitudeFeet: dto.altitude.feet };
+};
 
-const highPointToDto = (highestPoint: RouteLeg['highestPoint']): LegHighPointDto | null =>
+const highPointToDto = (highestPoint: RouteLeg['highestPoint']): LegHighPointDto =>
   highestPoint && {
     nz: toGeoDto(highestPoint.nz),
-    altitude: { feet: highestPoint.altitudeFeet, meters: highestPoint.altitudeFeet / FEET_IN_METER },
+    altitude: { feet: highestPoint.altitudeFeet, meters: highestPoint.altitudeFeet / FEET_IN_METER }
   };
 
 export const routeLegFromDto = (dto: RouteLegDto): RouteLeg => ({
@@ -32,16 +33,14 @@ export const routeLegFromDto = (dto: RouteLegDto): RouteLeg => ({
   legTimeMs: dto.legTimeMs,
   isManualLegTime: dto.isManualLegTime,
   tas: dto.tas,
-  zmmTime: dto.zmmTime ? new Date(dto.zmmTime) : null,
+  zmmTime: dto.zmmTime ?? undefined,
   highestPoint: highPointFromDto(dto.highestPoint),
   safetyAltitudeFeet: dto.safetyAltitude,
-  legOffsets: dto.legOffsets
-    ? {
-        dogHouseOffset: dto.legOffsets.dogHouseOffset ?? null,
-        timeTillZmmOffset: dto.legOffsets.timeTillZmmOffset ?? null,
-      }
-    : null,
-  turnPoint: dto.turnPoint ? fromGeoDto(dto.turnPoint) : null,
+  legOffsets: {
+    dogHouseOffset: dto.legOffsets.dogHouseOffset,
+    timeTillZmmOffset: dto.legOffsets.timeTillZmmOffset
+  },
+  turnPoint: dto.turnPoint ? fromGeoDto(dto.turnPoint) : undefined
 });
 
 export const routeLegToDto = (leg: RouteLeg): RouteLegDto => ({
@@ -52,11 +51,11 @@ export const routeLegToDto = (leg: RouteLeg): RouteLegDto => ({
   legTimeMs: leg.legTimeMs,
   isManualLegTime: leg.isManualLegTime,
   tas: leg.tas,
-  zmmTime: leg.zmmTime?.toISOString() ?? null,
+  zmmTime: leg.zmmTime ?? undefined,
   highestPoint: highPointToDto(leg.highestPoint),
   safetyAltitude: leg.safetyAltitudeFeet,
-  legOffsets: leg.legOffsets,
-  turnPoint: leg.turnPoint ? toGeoDto(leg.turnPoint) : null,
+  legOffsets: leg.legOffsets ?? undefined,
+  turnPoint: leg.turnPoint ? toGeoDto(leg.turnPoint) : undefined
 });
 
 export const routeFromCreateOrUpdateDto = (dto: CreateOrUpdateRouteDto): Route => ({
@@ -71,18 +70,22 @@ export const routeFromCreateOrUpdateDto = (dto: CreateOrUpdateRouteDto): Route =
   isVisible: dto.isVisible,
   color: dto.color,
   lineStyle: dto.lineStyle,
-  wptsIds: dto.wpts.map((wpt) => wpt.id),
+  wptsIds: dto.wpts.map(wpt => wpt.id),
   legs: dto.legs.map(routeLegFromDto),
   defaultTas: dto.defaultTas,
   isActive: dto.isActive,
   routeSource: dto.routeSource,
   viewMode: dto.viewMode,
-  zmmWptId: dto.zmmWptId ?? null,
+  zmmWptId: dto.zmmWptId ?? undefined,
   remoteId: dto.remoteId ?? 0,
-  remoteName: dto.remoteName ?? '',
+  remoteName: dto.remoteName ?? ''
 });
 
-export const applyRouteUpdate = (route: Route, dto: CreateOrUpdateRouteDto, now: Date = new Date()): Route => ({
+export const applyRouteUpdate = (
+  route: Route,
+  dto: CreateOrUpdateRouteDto,
+  now: Date = new Date()
+): Route => ({
   ...route,
   timeInfo: { ...route.timeInfo, lastUpdateTime: now },
   name: dto.name,
@@ -91,13 +94,13 @@ export const applyRouteUpdate = (route: Route, dto: CreateOrUpdateRouteDto, now:
   lineStyle: dto.lineStyle,
   category: dto.category,
   color: dto.color,
-  wptsIds: dto.wpts.map((wpt) => wpt.id),
+  wptsIds: dto.wpts.map(wpt => wpt.id),
   remoteName: dto.remoteName ?? route.remoteName,
   remoteId: dto.remoteId ?? route.remoteId,
   legs: dto.legs.map(routeLegFromDto),
   defaultTas: dto.defaultTas,
-  zmmWptId: dto.zmmWptId ?? null,
-  parentId: dto.parentId,
+  zmmWptId: dto.zmmWptId ?? undefined,
+  parentId: dto.parentId
 });
 
 export const routeToDto = (route: Route): RouteDto => ({
@@ -111,9 +114,9 @@ export const routeToDto = (route: Route): RouteDto => ({
   wptsIds: route.wptsIds,
   legs: route.legs.map(routeLegToDto),
   defaultTas: route.defaultTas,
-  remoteId: route.remoteId,
+  remoteId: route.remoteId ?? undefined,
   remoteName: route.remoteName,
-  zmmWptId: route.zmmWptId,
+  zmmWptId: route.zmmWptId
 });
 
 export const routeFromDto = (dto: RouteDto, parentId: string): Route => ({
@@ -132,11 +135,11 @@ export const routeFromDto = (dto: RouteDto, parentId: string): Route => ({
   legs: dto.legs.map(routeLegFromDto),
   defaultTas: dto.defaultTas,
   isActive: false,
-  routeSource: 'SAMSON',
-  viewMode: 'Regular',
-  zmmWptId: dto.zmmWptId ?? null,
+  routeSource: 'hair',
+  viewMode: 'regular',
+  zmmWptId: dto.zmmWptId ?? undefined,
   remoteId: dto.remoteId,
-  remoteName: dto.remoteName,
+  remoteName: dto.remoteName ?? undefined
 });
 
 export const routeToRetrieveDto = (route: Route, routeWpts: readonly Wpt[]): RetrieveRouteDto => ({
@@ -147,28 +150,34 @@ export const routeToRetrieveDto = (route: Route, routeWpts: readonly Wpt[]): Ret
   lineStyle: route.lineStyle,
   color: route.color,
   category: route.category,
-  wptsCoords: routeWpts.map((wpt) => toGeoDto(wpt.position)),
-  remoteId: route.remoteId,
-  remoteName: route.remoteName,
+  wptsCoords: routeWpts.map(wpt => toGeoDto(wpt.position)),
+  remoteId: route.remoteId ?? undefined,
+  remoteName: route.remoteName
 });
 
-export const routeToRetrieveNavigationDto = (route: Route, routeWpts: readonly Wpt[]): RetrieveNavigationRouteDto => ({
+export const routeToRetrieveNavigationDto = (
+  route: Route,
+  routeWpts: readonly Wpt[]
+): RetrieveNavigationRouteDto => ({
   general: toGeneralInfo(route),
   legs: route.legs.map((leg, index): RouteNavLegDto => {
     const wpt = routeWpts[index];
     return {
       endWpt: leg.endWpt,
-      endWptPosition: wpt ? toGeoDto(wpt.position) : null,
+      endWptPosition: wpt ? toGeoDto(wpt.position) : undefined,
       distanceNm: leg.distanceNm,
       angle: leg.angle,
       legTimeMs: leg.legTimeMs,
-      zmmTime: leg.zmmTime?.toISOString() ?? null,
-      safetyAltitude: leg.safetyAltitudeFeet,
+      zmmTime: leg.zmmTime ?? undefined,
+      safetyAltitude: leg.safetyAltitudeFeet
     };
-  }),
+  })
 });
 
-export const routeAsCreateOrUpdateDto = (route: Route, wpts: readonly Wpt[]): CreateOrUpdateRouteDto => ({
+export const routeAsCreateOrUpdateDto = (
+  route: Route,
+  wpts: readonly Wpt[]
+): CreateOrUpdateRouteDto => ({
   id: route.id,
   parentId: route.parentId,
   name: route.name,
@@ -186,5 +195,5 @@ export const routeAsCreateOrUpdateDto = (route: Route, wpts: readonly Wpt[]): Cr
   defaultTas: route.defaultTas,
   remoteId: route.remoteId,
   remoteName: route.remoteName,
-  zmmWptId: route.zmmWptId,
+  zmmWptId: route.zmmWptId
 });

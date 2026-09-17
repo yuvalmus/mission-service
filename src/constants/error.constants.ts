@@ -41,6 +41,6 @@ export const ERROR_MESSAGES = {
   CHANGE_VISIBILITY_LIST_FAILED: 'Failed to change visibility for the entity list',
   CHANGE_VISIBILITY_MISSING_ENTITY: (id: string) =>
     `Failed to change visibility: Entity with ID ${id} does not exist in the mission.`,
-  INVALID_SQUADRON: (name: string) => `Invalid stake name: ${name}`,
+  INVALID_PATRICK: (name: string) => `Invalid stake name: ${name}`,
   STAKE_NOT_FOUND: "Stake doesn't exist",
 } as const;

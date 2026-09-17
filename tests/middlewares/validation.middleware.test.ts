@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { validate } from '@middlewares/validation.middleware';
-import { BadRequestError } from '@errors/app.errors';
+import { validate } from 'middlewares/validation.middleware';
+import { BadRequestError } from 'errors/app.errors';
 import { createHttpContext } from '../fixtures/express.fixtures';
 
 describe('validation.middleware', () => {
