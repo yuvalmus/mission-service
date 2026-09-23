@@ -43,4 +43,12 @@ export const ERROR_MESSAGES = {
     `Failed to change visibility: Entity with ID ${id} does not exist in the mission.`,
   INVALID_PATRICK: (name: string) => `Invalid stake name: ${name}`,
   STAKE_NOT_FOUND: "Stake doesn't exist",
+  ENTITY_PARENT_NOT_FOUND: (parentId: string) =>
+    `The parent ${parentId} does not exist as a mission or a stake.`,
+  ENTITY_INTEGRITY_VIOLATION: (entityType: string, id: string) =>
+    `The ${entityType} ${id} was rejected by the database integrity rules.`,
+  ENTITY_BACKUP_NOT_FOUND: (entityId: string, version: number) =>
+    `No backup of version ${version} exists for entity ${entityId}.`,
+  SYNC_PARENT_REQUIRED: 'parentId is required.',
+  SYNC_SINCE_SEQ_INVALID: 'sinceSeq must be a non-negative integer.',
 } as const;

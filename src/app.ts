@@ -12,6 +12,7 @@ import { createEntityDeleterRoutes } from 'routes/entity-deleter.routes';
 import { createEntityRetrieverRoutes } from 'routes/entity-retriever.routes';
 import { createNamesRoutes } from 'routes/names.routes';
 import { createStakeRoutes } from 'routes/stake.routes';
+import { createSyncRoutes } from 'routes/sync.routes';
 import { createErrorMiddleware } from 'middlewares/error.middleware';
 import { createRedisHealthMiddleware } from 'middlewares/redis-health.middleware';
 
@@ -48,6 +49,11 @@ export const createApp = (container: AppContainer): Express => {
   app.use(ROUTES.ENTITIES, createEntityRetrieverRoutes(container.entityRetrieverController));
   app.use(ROUTES.NAMES, createNamesRoutes(container.defaultNamesController));
   app.use(ROUTES.STAKES, createStakeRoutes(container.stakeController));
+
+  if (container.syncController && container.entityHistoryController) {
+    app.use(ROUTES.SYNC, createSyncRoutes(container.syncController, container.entityHistoryController));
+  }
+
   app.use(ROUTES.DOCS, createDocsRoutes());
 
   app.use(createErrorMiddleware(container.logger));

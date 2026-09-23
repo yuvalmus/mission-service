@@ -15,7 +15,7 @@ export const COLOR_VALIDATION_MESSAGE = (color: string) =>
 
 export const KnownColorSchema = z
   .string()
-  .refine(isKnownColor, value => ({ message: COLOR_VALIDATION_MESSAGE(value) }));
+  .refine(isKnownColor, { error: issue => COLOR_VALIDATION_MESSAGE(String(issue.input)) });
 
 export const EntitySourceSchema = z.enum(ENTITY_SOURCES);
 export const LineStyleSchema = z.enum(LINE_STYLES);

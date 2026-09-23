@@ -5,6 +5,7 @@ import 'docs/mission.docs';
 import 'docs/health.docs';
 import 'docs/entity.docs';
 import 'docs/stake.docs';
+import 'docs/sync.docs';
 
 const OPENAPI_INFO = {
   OPENAPI_VERSION: '3.0.0',
