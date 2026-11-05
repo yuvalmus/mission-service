@@ -71,13 +71,14 @@ export const createStakeService = ({
 
     const entities = createStakeEntitiesFromDto(dto, stake.id);
     await missionService.addEntities(entities, stake.id);
+    logger.info({ stakeId: stake.id, patrickName, entityCount: entities.length }, 'Stake created');
     return stake;
   };
 
   const deleteStakeEntities = (patrickName: Patrick): Promise<boolean> =>
     unitOfWork.run(async context => {
       const stake = await findStakeOfPatrick(patrickName);
-const result = await entityRepository.deleteByParentId(stake.id, context);
+      const result = await entityRepository.deleteByParentId(stake.id, context);
       await stakeRepository.bumpVersion(stake.id, context);
       logger.info({ patrickName }, 'Deleted stake entities');
       return result;

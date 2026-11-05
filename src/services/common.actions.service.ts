@@ -38,7 +38,10 @@ export const createCommonActionsService = ({
       await stakeRepository.bumpVersion(parentId, context);
       return;
     }
-    await missionRepository.bumpVersion(parentId, context);
+    const bumped = await missionRepository.bumpVersion(parentId, context);
+    if (!bumped) {
+      logger.warn({ parentId }, 'Version was not bumped, parent mission or stake was not found');
+    }
   };
 
   return {

@@ -46,6 +46,11 @@ export const createEntityDeleterService = ({
     context?: TransactionContext
   ): Promise<boolean> => {
     const deleted = await entityRepository.deleteById(id, context);
+    if (deleted) {
+      logger.info({ id, parentId }, 'Entity deleted');
+    } else {
+      logger.warn({ id, parentId }, 'Entity was not deleted, it was not found');
+    }
     await commonActions.bumpParentVersion(parentId, context);
     return deleted;
   };
@@ -75,6 +80,15 @@ export const createEntityDeleterService = ({
         await commonActions.bumpParentVersion(remapped.parentId, context);
       }
       await entityAdder.addEntity(duplicatedWpt, duplicatedWpt.parentId, context);
+      logger.info(
+        {
+          wptId: wpt.id,
+          duplicatedWptId: duplicatedWpt.id,
+          missionId,
+          routeCount: missionRoutes.length
+        },
+        'Duplicated stake wpt for mission before deletion'
+      );
     }
 
     return deleteAndBump(wpt.id, wpt.parentId, context);

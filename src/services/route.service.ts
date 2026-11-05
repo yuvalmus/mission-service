@@ -86,7 +86,9 @@ export const createRouteService = ({
       if (!areLegsValid(incomingRoute.legs, incomingRoute.wpts)) {
         throw new BadRequestError(ERROR_MESSAGES.ROUTE_CREATE_INVALID_LEGS);
       }
-      return entityAdder.addEntity(newRoute, parentId, transactionContext);
+      const addedRoute = await entityAdder.addEntity(newRoute, parentId, transactionContext);
+      logger.info({ routeId: addedRoute.id, parentId }, 'Route added');
+      return addedRoute;
     };
     return outerTransactionContext
       ? doSave(outerTransactionContext)
@@ -127,7 +129,13 @@ export const createRouteService = ({
         throw new BadRequestError(ERROR_MESSAGES.ROUTE_UPDATE_INVALID_LEGS);
       }
       const updatedRoute = applyRouteUpdate(withoutWpts, incomingRoute);
-      return entityUpdater.updateEntity(incomingRoute.parentId, updatedRoute, transactionContext);
+      const savedRoute = await entityUpdater.updateEntity(
+        incomingRoute.parentId,
+        updatedRoute,
+        transactionContext
+      );
+      logger.info({ routeId: savedRoute.id, parentId: savedRoute.parentId }, 'Route updated');
+      return savedRoute;
     });
   };
 

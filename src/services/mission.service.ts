@@ -181,10 +181,13 @@ export const createMissionService = ({
     await validateMissionName(incomingMission.id, incomingMission.name);
 
     if (isMissionUnchanged(mission, incomingMission)) {
+      logger.info({ missionId: mission.id }, 'Mission update skipped, nothing changed');
       return mission;
     }
 
-    return missionRepository.update(applyUpdateDto(mission, incomingMission));
+    const updated = await missionRepository.update(applyUpdateDto(mission, incomingMission));
+    logger.info({ missionId: mission.id }, 'Mission updated');
+    return updated;
   };
 
   const deleteMission = (id: string): Promise<boolean> =>
@@ -200,6 +203,7 @@ export const createMissionService = ({
     });
 
   const cloneMission = async (id: string): Promise<Mission> => {
+    logger.info({ missionId: id }, 'Attempting to clone a mission');
     const sourceMission = await findMission(id);
     if (!sourceMission) {
       throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
@@ -214,6 +218,7 @@ export const createMissionService = ({
     };
     await missionRepository.create(cloned);
     await cloneMissionEntities(sourceEntities, cloned.id);
+    logger.info({ sourceMissionId: id, clonedMissionId: cloned.id }, 'Mission cloned');
 
     return (await findMission(cloned.id)) as Mission;
   };
@@ -223,6 +228,7 @@ export const createMissionService = ({
     mergedId: string,
     layers: MissionLayer[]
   ): Promise<Mission | null> => {
+    logger.info({ currentId, mergedId, layers }, 'Attempting to merge missions');
     const targetMission = await findMission(currentId);
     const sourceMission = await findMission(mergedId);
 
@@ -262,6 +268,10 @@ export const createMissionService = ({
         })
       );
       await addEntities(entitiesToAdd, currentId);
+      logger.info(
+        { currentId, mergedId, deleted: entitiesToDelete.length, added: entitiesToAdd.length },
+        'Missions merged'
+      );
     }
 
     return findMission(currentId);
@@ -270,9 +280,10 @@ export const createMissionService = ({
   const createMissionList = async (
     incomingMissions: MissionDto[]
   ): Promise<MissionWithEntities[]> => {
+    logger.info({ count: incomingMissions.length }, 'Attempting to create a mission list');
     const splitMission = await getSplitMission(incomingMissions);
 
-    return unitOfWork.run(async transactionContext => {
+    const created = await unitOfWork.run(async transactionContext => {
       for (const { mission, entities } of splitMission) {
         const cloned: Mission = { ...mission, id: randomUUID() };
         await missionRepository.create(cloned, transactionContext);
@@ -303,14 +314,21 @@ export const createMissionService = ({
 
       return splitMission;
     });
+    logger.info({ count: created.length }, 'Mission list created');
+    return created;
   };
 
-  const retrieveAll = (): Promise<MissionBase[]> => missionRepository.findAllBasic();
+  const retrieveAll =(): Promise<MissionBase[]> => missionRepository.findAllBasic();
 
   const retrieveAllInList = async (
     ids: readonly string[]
   ): Promise<MissionWithEntities[]> => {
     const missions = await missionRepository.findByIds(ids);
+    const foundIds = new Set(missions.map(mission => mission.id));
+    const missingIds = ids.filter(id => !foundIds.has(id));
+    if (missingIds.length > 0) {
+      logger.warn({ missingIds }, 'Some of the requested missions were not found');
+    }
     return Promise.all(
       missions.map(async mission => ({
         mission,
