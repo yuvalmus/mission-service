@@ -15,7 +15,7 @@ import {
 export const createMissionRoutes = (controller: MissionController): Router => {
   const router = Router();
 
-  router.get(MISSION_ROUTES.AS_BASIC, controller.getAllBasic);
+  router.get(MISSION_ROUTES.AS_BASIC, controller.getAllBasicMissions);
   router.get(
     MISSION_ROUTES.SEARCH,
     validate({ params: SearchNameParamsSchema }),
@@ -40,7 +40,7 @@ export const createMissionRoutes = (controller: MissionController): Router => {
   router.post(
     MISSION_ROUTES.LIST,
     validate({ body: MissionDtoListSchema }),
-    controller.importMissions
+    controller.createMissionList
   );
   router.post(
     MISSION_ROUTES.CLONE,

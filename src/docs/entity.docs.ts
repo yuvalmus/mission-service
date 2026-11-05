@@ -3,12 +3,12 @@ import { z, registry } from 'config/openapi.config';
 import { ROUTES } from 'constants/app.constants';
 import { HTTP_STATUS } from 'constants/http.constants';
 import { ENTITY_DEFINITIONS } from 'mappers/entity.registry';
-import { ENTITY_SEGMENTS, ENTITY_TYPES } from 'constants/entity.constants';
+import { ENTITY_TYPES } from 'constants/entity.constants';
 import {
   BasicEntityDtoSchema,
   UpdateBasicEntitiesDtoSchema,
   UpdateBasicEntityDtoSchema
-} from 'dtos/entity.dtos';
+} from 'dtos/commonEntity.dtos';
 import {
   CreateOrUpdateRouteDtoSchema,
   RetrieveNavigationRouteDtoSchema,
@@ -21,6 +21,12 @@ const TAGS = {
   ENTITIES: 'Entities',
   NAMES: 'Default names'
 } as const;
+
+const toName = (segment: string): string =>
+  segment.replace(/([a-z0-9])([A-Z])/g, (_, first: string, second: string) => `${first}-${second}`)
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
 
 const jsonContent = (schema: ZodTypeAny) => ({ 'application/json': { schema } });
 
@@ -41,15 +47,19 @@ const registerEntityCrud = (
   updateSchema: ZodTypeAny,
   dtoSchema: ZodTypeAny
 ): void => {
+  const name = toName(segment);
+
   [ROUTES.CREATE, ROUTES.CREATE_STAKE].forEach(base => {
     registry.registerPath({
       method: 'post',
       path: `${base}/${segment}`,
+      operationId:
+        base === ROUTES.CREATE ? `create${name}` : `create${name}Stake`,
       tags: [TAGS.ENTITIES],
       summary: `Create a ${segment}`,
       request: { body: { content: jsonContent(createSchema) } },
       responses: {
-        [HTTP_STATUS.OK]: {
+        [HTTP_STATUS.CREATED]: {
           description: `The created ${segment}`,
           content: jsonContent(dtoSchema)
         },
@@ -62,6 +72,8 @@ const registerEntityCrud = (
     registry.registerPath({
       method: 'put',
       path: `${base}/${segment}`,
+      operationId:
+        base === ROUTES.UPDATE ? `update${name}` : `update${name}Stake`,
       tags: [TAGS.ENTITIES],
       summary: `Update a ${segment}`,
       request: { body: { content: jsonContent(updateSchema) } },
@@ -79,10 +91,12 @@ const registerEntityCrud = (
     registry.registerPath({
       method: 'delete',
       path: `${base}/${segment}/{mission}/{id}`,
+      operationId:
+        base === ROUTES.DELETE ? `delete${name}` : `delete${name}Stake`,
       tags: [TAGS.ENTITIES],
       summary: `Delete a ${segment}`,
       responses: {
-        [HTTP_STATUS.OK]: { description: `${segment} deleted` },
+        [HTTP_STATUS.NO_CONTENT]: { description: `${segment} deleted` },
         ...notFoundResponse,
         ...badRequestResponse
       }
@@ -92,6 +106,7 @@ const registerEntityCrud = (
   registry.registerPath({
     method: 'get',
     path: `${ROUTES.ENTITIES}/${segment}/{id}`,
+    operationId: `get${name}`,
     tags: [TAGS.ENTITIES],
     summary: `Get a ${segment} by id`,
     responses: {
@@ -103,6 +118,7 @@ const registerEntityCrud = (
   registry.registerPath({
     method: 'get',
     path: `${ROUTES.NAMES}/${segment}/{missionId}/{amount}`,
+    operationId: `names${name}`,
     tags: [TAGS.NAMES],
     summary: `Generate default names for ${segment}`,
     responses: {
@@ -115,9 +131,9 @@ const registerEntityCrud = (
   });
 };
 
-ENTITY_DEFINITIONS.forEach(definition => {
+Object.values(ENTITY_DEFINITIONS).forEach(definition => {
   registerEntityCrud(
-    definition.segment,
+    definition.entityTypeSegment,
     definition.createSchema,
     definition.updateSchema,
     definition.dtoSchema
@@ -125,7 +141,7 @@ ENTITY_DEFINITIONS.forEach(definition => {
 });
 
 registerEntityCrud(
-  ENTITY_SEGMENTS[ENTITY_TYPES.ROUTE],
+  ENTITY_TYPES.ROUTE,
   CreateOrUpdateRouteDtoSchema,
   CreateOrUpdateRouteDtoSchema,
   RouteDtoSchema
@@ -133,7 +149,8 @@ registerEntityCrud(
 
 registry.registerPath({
   method: 'get',
-  path: `${ROUTES.ENTITIES}/${ENTITY_SEGMENTS[ENTITY_TYPES.ROUTE]}/{id}`,
+  path: `${ROUTES.ENTITIES}/${ENTITY_TYPES.ROUTE}/{id}`,
+  operationId: 'getRoute',
   tags: [TAGS.ENTITIES],
   summary: 'Get a route with its wpt coordinates',
   responses: {
@@ -145,6 +162,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${ROUTES.ENTITIES}/nav-route/{id}`,
+  operationId: 'getNavigationRoute',
   tags: [TAGS.ENTITIES],
   summary: 'Get a route in navigation form',
   responses: {
@@ -160,6 +178,8 @@ registry.registerPath({
   registry.registerPath({
     method: 'put',
     path: `${base}/changeEntityVisibility`,
+    operationId:
+      base === ROUTES.UPDATE ? 'changeEntityVisibility' : 'changeEntityVisibilityStake',
     tags: [TAGS.ENTITIES],
     summary: 'Change visibility of a single entity',
     request: { body: { content: jsonContent(UpdateBasicEntityDtoSchema) } },
@@ -175,6 +195,8 @@ registry.registerPath({
   registry.registerPath({
     method: 'put',
     path: `${base}/changeEntitiesVisibility`,
+    operationId:
+      base === ROUTES.UPDATE ? 'changeEntitiesVisibility' : 'changeEntitiesVisibilityStake',
     tags: [TAGS.ENTITIES],
     summary: 'Change visibility of a list of entities',
     request: { body: { content: jsonContent(UpdateBasicEntitiesDtoSchema) } },
@@ -191,6 +213,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${ROUTES.NAMES}/route/wpt/{missionId}/{amount}`,
+  operationId: 'namesRouteWpt',
   tags: [TAGS.NAMES],
   summary: 'Generate default names for route wpts',
   responses: {
@@ -202,6 +225,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${ROUTES.NAMES}/mission`,
+  operationId: 'nextMissionName',
   tags: [TAGS.NAMES],
   summary: 'Generate the next default mission name',
   responses: {

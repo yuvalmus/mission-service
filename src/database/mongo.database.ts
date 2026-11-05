@@ -11,7 +11,7 @@ export interface MongoDatabase {
 const READY_STATE_CONNECTED = 1;
 
 export const createMongoDatabase = (env: Env): MongoDatabase => {
-  const connection = mongoose.createConnection(env.MONGO_URI, { dbName: env.MONGO_DB_NAME });
+  const connection = mongoose.createConnection(env.MONGO_URL, { dbName: env.MONGO_DB_NAME });
 
   const client: DatabaseClient = {
     connect: async () => {
@@ -29,7 +29,7 @@ export const createMongoDatabase = (env: Env): MongoDatabase => {
         return false;
       }
     },
-    isConnected: () => connection.readyState === READY_STATE_CONNECTED,
+    isConnected: () => connection.readyState === READY_STATE_CONNECTED
   };
 
   const unitOfWork: UnitOfWork = {
@@ -44,7 +44,7 @@ export const createMongoDatabase = (env: Env): MongoDatabase => {
       } finally {
         await session.endSession();
       }
-    },
+    }
   };
 
   return { client, unitOfWork, connection };

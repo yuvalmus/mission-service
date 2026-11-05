@@ -1,24 +1,24 @@
 import { randomUUID } from 'node:crypto';
 import { Patrick, STAKE_CONSTANTS, Stake, parsePatrick } from 'models/stake.models';
-import { AnyEntity } from 'models/entity-union.models';
+import { Entity } from 'models/entity.union.models';
 import { CreateStakeDto } from 'dtos/stake.dtos';
-import { StakeRepository } from 'repositories/stake.repository';
-import { EntityRepository } from 'repositories/entity.repository';
+import { StakeRepository } from 'repositories/stake.repository.interface';
+import { EntityRepository } from 'repositories/entity.repository.interface';
 import { UnitOfWork } from 'database/database.types';
 import { BadRequestError } from 'errors/app.errors';
 import { ERROR_MESSAGES } from 'constants/error.constants';
-import { stakeEntitiesFromCreateDto } from 'mappers/stake.mapper';
+import { createStakeEntitiesFromDto } from 'mappers/stake.mapper';
 import { MissionService } from 'services/mission.service';
 import { AppLogger } from 'utils/logger.util';
 
-export interface StakeWithEntities {
+export interface PatrickStake {
   stake: Stake;
-  entities: AnyEntity[];
+  entities: Entity[];
 }
 
 export interface StakeService {
-  findStakeOfPatrick(patrickName: Patrick): Promise<StakeWithEntities>;
-  createStake(dto: CreateStakeDto): Promise<StakeWithEntities>;
+  findStakeOfPatrick(patrickName: Patrick): Promise<PatrickStake>;
+  createStake(dto: CreateStakeDto): Promise<PatrickStake>;
   deleteStakeEntities(patrickName: Patrick): Promise<boolean>;
 }
 
@@ -47,7 +47,7 @@ export const createStakeService = ({
     return stakeRepository.insert(stake);
   };
 
-  const findStakeOfPatrick = async (patrickName: Patrick): Promise<StakeWithEntities> => {
+  const findStakeOfPatrick = async (patrickName: Patrick): Promise<PatrickStake> => {
     const existing = await stakeRepository.findByPatrickName(
       patrickName.toLowerCase() as Patrick
     );
@@ -57,36 +57,38 @@ export const createStakeService = ({
     return { stake, entities };
   };
 
+  const createStake = async (dto: CreateStakeDto): Promise<PatrickStake> => {
+    const patrickName = parsePatrick(dto.patrickName);
+    if (!patrickName) {
+      throw new BadRequestError(ERROR_MESSAGES.INVALID_PATRICK(dto.patrickName));
+    }
+
+    const stake: Stake = {
+      id: randomUUID(),
+      patrickName,
+      versionNumber: STAKE_CONSTANTS.BASE_VERSION_NUMBER
+    };
+    await stakeRepository.insert(stake);
+
+    const entities = createStakeEntitiesFromDto(dto, stake.id);
+    await missionService.addEntities(entities, stake.id);
+
+    const persisted = await entityRepository.findByParentId(stake.id);
+    return { stake, entities: persisted };
+  };
+
+  const deleteStakeEntities = (patrickName: Patrick): Promise<boolean> =>
+    unitOfWork.run(async context => {
+      const { stake } = await findStakeOfPatrick(patrickName);
+const result = await entityRepository.deleteByParentId(stake.id, context);
+      await stakeRepository.bumpVersion(stake.id, context);
+      logger.info({ patrickName }, 'Deleted stake entities');
+      return result;
+    });
+
   return {
     findStakeOfPatrick,
-
-    createStake: async dto => {
-      const patrickName = parsePatrick(dto.patrickName);
-      if (!patrickName) {
-        throw new BadRequestError(ERROR_MESSAGES.INVALID_PATRICK(dto.patrickName));
-      }
-
-      const stake: Stake = {
-        id: randomUUID(),
-        patrickName,
-        versionNumber: STAKE_CONSTANTS.BASE_VERSION_NUMBER
-      };
-      await stakeRepository.insert(stake);
-
-      const entities = stakeEntitiesFromCreateDto(dto, stake.id);
-      await missionService.addEntities(entities, stake.id);
-
-      const persisted = await entityRepository.findByParentId(stake.id);
-      return { stake, entities: persisted };
-    },
-
-    deleteStakeEntities: patrickName =>
-      unitOfWork.run(async context => {
-        const { stake } = await findStakeOfPatrick(patrickName);
-        const result = await entityRepository.deleteByParentId(stake.id, context);
-        await stakeRepository.update({ ...stake, versionNumber: stake.versionNumber + 1 });
-        logger.info({ patrickName }, 'Deleted stake entities');
-        return result;
-      })
+    createStake,
+    deleteStakeEntities
   };
 };

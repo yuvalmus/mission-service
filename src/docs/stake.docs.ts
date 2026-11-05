@@ -19,6 +19,7 @@ const badRequestResponse = {
 registry.registerPath({
   method: 'get',
   path: `${ROUTES.STAKES}/{patrickName}`,
+  operationId: 'getStakeOfPatrick',
   tags: [TAGS.STAKES],
   summary: 'Get (or initialize) the stake of a patrick',
   responses: {
@@ -30,11 +31,12 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: ROUTES.STAKES,
+  operationId: 'createStake',
   tags: [TAGS.STAKES],
   summary: 'Create a stake with entities',
   request: { body: { content: jsonContent(CreateStakeDtoSchema) } },
   responses: {
-    [HTTP_STATUS.OK]: { description: 'The created stake', content: jsonContent(StakeDtoSchema) },
+    [HTTP_STATUS.CREATED]: { description: 'The created stake', content: jsonContent(StakeDtoSchema) },
     ...badRequestResponse,
   },
 });
@@ -42,10 +44,11 @@ registry.registerPath({
 registry.registerPath({
   method: 'delete',
   path: `${ROUTES.STAKES}/{patrickName}`,
+  operationId: 'deleteStakeEntities',
   tags: [TAGS.STAKES],
   summary: 'Delete all entities of a patrick stake',
   responses: {
-    [HTTP_STATUS.OK]: { description: 'Stake entities deleted' },
+    [HTTP_STATUS.NO_CONTENT]: { description: 'Stake entities deleted' },
     [HTTP_STATUS.NOT_FOUND]: { description: 'Stake not found' },
     ...badRequestResponse,
   },

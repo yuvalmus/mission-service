@@ -30,12 +30,12 @@ export const createStakeController = (stakeService: StakeService): StakeControll
 
   createStake: async (req, res) => {
     const { stake, entities } = await stakeService.createStake(req.body);
-    res.status(HTTP_STATUS.OK).json(toStakeDto(stake, entities));
+    res.status(HTTP_STATUS.CREATED).json(toStakeDto(stake, entities));
   },
 
   deleteStakeEntities: async (req, res) => {
     const patrick = parsePatrickOrThrow(req.params.patrickName);
-    const deleted = await stakeService.deleteStakeEntities(patrick);
-    res.status(deleted ? HTTP_STATUS.OK : HTTP_STATUS.NOT_FOUND).send();
+    const deletedEntities = await stakeService.deleteStakeEntities(patrick);
+    res.status(deletedEntities ? HTTP_STATUS.NO_CONTENT : HTTP_STATUS.NOT_FOUND).send();
   }
 });

@@ -5,7 +5,7 @@ import { createHttpContext } from '../fixtures/express.fixtures';
 
 describe('validation.middleware', () => {
   const BodySchema = z.object({ name: z.string().min(1), count: z.coerce.number().int() });
-  const ParamsSchema = z.object({ id: z.string().uuid() });
+  const ParamsSchema = z.object({ id: z.uuid() });
 
   it('calls next and replaces the body with parsed data on success', () => {
     const { req, res, next } = createHttpContext({ body: { name: 'alpha', count: '5' } });
@@ -19,7 +19,7 @@ describe('validation.middleware', () => {
   it('validates multiple request parts in one call', () => {
     const { req, res, next } = createHttpContext({
       body: { name: 'alpha', count: 2 },
-      params: { id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' },
+      params: { id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' }
     });
 
     validate({ body: BodySchema, params: ParamsSchema })(req, res, next);

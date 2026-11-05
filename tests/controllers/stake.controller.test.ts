@@ -29,7 +29,7 @@ describe('stake.controller', () => {
 
       await controller.getStakeOfPatrick(req, res);
 
-      expect(stakeService.findStakeOfPatrick).toHaveBeenCalledWith('Patrick100');
+      expect(stakeService.findStakeOfPatrick).toHaveBeenCalledWith('patrick100');
       expect(res.statusCode).toBe(HTTP_STATUS.OK);
       expect(res._getJSONData()).toMatchObject({ patrickId: STAKE_ID, versionNumber: 3 });
       expect(res._getJSONData().stakeEntities.stakeCircles).toHaveLength(1);
@@ -46,7 +46,7 @@ describe('stake.controller', () => {
   });
 
   describe('deleteStakeEntities', () => {
-    it('returns 200 when the entities were deleted', async () => {
+    it('returns 204 when the entities were deleted', async () => {
       stakeService.deleteStakeEntities.mockResolvedValue(true);
       const { req, res } = createHttpContext<Request<PatrickParams>>({
         params: { patrickName: 'Patrick100' },
@@ -54,7 +54,7 @@ describe('stake.controller', () => {
 
       await controller.deleteStakeEntities(req, res);
 
-      expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res.statusCode).toBe(HTTP_STATUS.NO_CONTENT);
     });
   });
 });

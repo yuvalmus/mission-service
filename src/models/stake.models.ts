@@ -10,12 +10,12 @@ export const PatrickSchema = z.enum(PATRICKS);
 export type Patrick = z.infer<typeof PatrickSchema>;
 
 export const StakeSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   patrickName: PatrickSchema,
   versionNumber: z.number().int()
 });
 
 export type Stake = z.infer<typeof StakeSchema>;
 
-export const parsePatrick = (value: string): Patrick | null =>
-  PATRICKS.find(patrick => patrick.toLowerCase() === value.toLowerCase()) ?? null;
+export const parsePatrick = (value: string): Patrick | undefined =>
+  Object.values(PATRICKS).find(patrick => patrick.toLowerCase() === value.toLowerCase());

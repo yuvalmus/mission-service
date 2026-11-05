@@ -15,7 +15,7 @@ import {
   createLoggerMock,
   createMissionRepositoryMock,
   createRouteServiceMock,
-  createUnitOfWorkMock,
+  createUnitOfWorkMock
 } from '../fixtures/mission.fixtures';
 import { buildCircle, buildRoute, buildWpt } from '../fixtures/entity.fixtures';
 
@@ -33,13 +33,13 @@ describe('mission.service', () => {
     routeService,
     commonActions,
     unitOfWork,
-    logger,
+    logger
   });
 
   describe('createMission', () => {
     it('creates a mission with a generated id, base version and creation timestamps', async () => {
       missionRepository.findIdByName.mockResolvedValue(null);
-      missionRepository.create.mockImplementation(async (mission) => mission);
+      missionRepository.create.mockImplementation(async mission => mission);
 
       const created = await service.createMission(buildCreateMissionDto());
 
@@ -52,14 +52,14 @@ describe('mission.service', () => {
       missionRepository.findIdByName.mockResolvedValue(OTHER_MISSION_ID);
 
       await expect(service.createMission(buildCreateMissionDto())).rejects.toThrow(
-        ERROR_MESSAGES.MISSION_NAME_EXISTS(MISSION_NAME),
+        ERROR_MESSAGES.MISSION_NAME_EXISTS(MISSION_NAME)
       );
       expect(missionRepository.create).not.toHaveBeenCalled();
     });
 
     it('rejects an empty mission name', async () => {
       await expect(service.createMission(buildCreateMissionDto({ name: '   ' }))).rejects.toThrow(
-        ERROR_MESSAGES.EMPTY_MISSION_NAME,
+        ERROR_MESSAGES.EMPTY_MISSION_NAME
       );
     });
   });
@@ -78,14 +78,14 @@ describe('mission.service', () => {
     it('applies changes, bumps the version and refreshes lastUpdateTime', async () => {
       missionRepository.findById.mockResolvedValue(buildMission());
       missionRepository.findIdByName.mockResolvedValue(null);
-      missionRepository.update.mockImplementation(async (mission) => mission);
+      missionRepository.update.mockImplementation(async mission => mission);
 
       const result = await service.updateMission(buildUpdateMissionDto({ comment: 'changed' }));
 
       expect(result.comment).toBe('changed');
       expect(result.versionNumber).toBe(2);
       expect(result.timeInfo?.lastUpdateTime.getTime()).toBeGreaterThan(
-        buildMission().timeInfo!.lastUpdateTime.getTime(),
+        buildMission().timeInfo!.lastUpdateTime.getTime()
       );
     });
 
@@ -93,7 +93,7 @@ describe('mission.service', () => {
       missionRepository.findById.mockResolvedValue(null);
 
       await expect(service.updateMission(buildUpdateMissionDto())).rejects.toThrow(
-        ERROR_MESSAGES.MISSION_NOT_FOUND,
+        ERROR_MESSAGES.MISSION_NOT_FOUND
       );
     });
   });
@@ -114,7 +114,9 @@ describe('mission.service', () => {
     it('throws when the mission does not exist', async () => {
       missionRepository.findById.mockResolvedValue(null);
 
-      await expect(service.deleteMission(MISSION_ID)).rejects.toThrow(ERROR_MESSAGES.MISSION_NOT_FOUND);
+      await expect(service.deleteMission(MISSION_ID)).rejects.toThrow(
+        ERROR_MESSAGES.MISSION_NOT_FOUND
+      );
       expect(missionRepository.delete).not.toHaveBeenCalled();
     });
   });
@@ -122,13 +124,13 @@ describe('mission.service', () => {
   describe('cloneMission', () => {
     it('creates a copy with generated name, clones entities with new ids and bumps versions per entity', async () => {
       const sourceCircle = buildCircle();
-      missionRepository.findById.mockImplementation(async (id) =>
-        id === MISSION_ID ? buildMission() : buildMission({ id, name: `${MISSION_NAME}(1)` }),
+      missionRepository.findById.mockImplementation(async id =>
+        id === MISSION_ID ? buildMission() : buildMission({ id, name: `${MISSION_NAME}(1)` })
       );
       entityRepository.findByParentId.mockResolvedValue([sourceCircle]);
       missionRepository.findAllNames.mockResolvedValue([MISSION_NAME]);
-      missionRepository.create.mockImplementation(async (mission) => mission);
-      entityRepository.insert.mockImplementation(async (entity) => entity);
+      missionRepository.create.mockImplementation(async mission => mission);
+      entityRepository.insert.mockImplementation(async entity => entity);
 
       const { mission: cloned } = await service.cloneMission(MISSION_ID);
 
@@ -145,7 +147,7 @@ describe('mission.service', () => {
       missionRepository.findById.mockResolvedValue(buildMission());
       entityRepository.findByParentId.mockResolvedValue([route]);
       missionRepository.findAllNames.mockResolvedValue([]);
-      missionRepository.create.mockImplementation(async (mission) => mission);
+      missionRepository.create.mockImplementation(async mission => mission);
       routeService.cloneRoute.mockResolvedValue({} as never);
       routeService.addRoute.mockResolvedValue(route);
 
@@ -170,14 +172,14 @@ describe('mission.service', () => {
       const currentMission = buildMission();
       const mergedMission = buildMission({ id: OTHER_MISSION_ID, name: 'Other' });
 
-      missionRepository.findById.mockImplementation(async (id) =>
-        id === MISSION_ID ? currentMission : mergedMission,
+      missionRepository.findById.mockImplementation(async id =>
+        id === MISSION_ID ? currentMission : mergedMission
       );
-      entityRepository.findByParentId.mockImplementation(async (parentId) =>
-        parentId === MISSION_ID ? [currentWpt] : [mergedWpt],
+      entityRepository.findByParentId.mockImplementation(async parentId =>
+        parentId === MISSION_ID ? [currentWpt] : [mergedWpt]
       );
       entityRepository.deleteById.mockResolvedValue(true);
-      entityRepository.insert.mockImplementation(async (entity) => entity);
+      entityRepository.insert.mockImplementation(async entity => entity);
 
       await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['navigation']);
 
@@ -192,13 +194,17 @@ describe('mission.service', () => {
       // The surviving wpt (category User) is outside the UserItems layer, so the incoming
       // General circle with the same name must be renamed with the circle prefix.
       const survivingWpt = buildWpt({ name: 'C001' });
-      const mergedCircle = buildCircle({ id: OTHER_MISSION_ID, name: 'C001', parentId: OTHER_MISSION_ID });
+      const mergedCircle = buildCircle({
+        id: OTHER_MISSION_ID,
+        name: 'C001',
+        parentId: OTHER_MISSION_ID
+      });
 
       missionRepository.findById.mockResolvedValue(buildMission());
-      entityRepository.findByParentId.mockImplementation(async (parentId) =>
-        parentId === MISSION_ID ? [survivingWpt] : [mergedCircle],
+      entityRepository.findByParentId.mockImplementation(async parentId =>
+        parentId === MISSION_ID ? [survivingWpt] : [mergedCircle]
       );
-      entityRepository.insert.mockImplementation(async (entity) => entity);
+      entityRepository.insert.mockImplementation(async entity => entity);
 
       await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['userItems']);
 
@@ -216,12 +222,12 @@ describe('mission.service', () => {
     });
   });
 
-  describe('importMissions', () => {
+  describe('createMissionList', () => {
     it('rejects lists with duplicate mission ids or names', async () => {
       const dto = { id: MISSION_ID, name: MISSION_NAME } as never;
 
-      await expect(service.importMissions([dto, dto])).rejects.toThrow(
-        ERROR_MESSAGES.DUPLICATE_MISSIONS_IN_LIST,
+      await expect(service.createMissionList([dto, dto])).rejects.toThrow(
+        ERROR_MESSAGES.DUPLICATE_MISSIONS_IN_LIST
       );
     });
   });
@@ -231,13 +237,18 @@ describe('mission.service', () => {
       missionRepository.findById.mockResolvedValue(buildMission());
       entityRepository.findNamesByParentId.mockResolvedValue(['C001']);
 
-      await expect(service.generateNextEntityNames(MISSION_ID, 2, 'C')).resolves.toEqual(['C002', 'C003']);
+      await expect(service.generateNextEntityNames(MISSION_ID, 2, 'C')).resolves.toEqual([
+        'C002',
+        'C003'
+      ]);
     });
 
     it('throws NotFoundError for an unknown mission', async () => {
       missionRepository.findById.mockResolvedValue(null);
 
-      await expect(service.generateNextEntityNames(MISSION_ID, 1, 'C')).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.generateNextEntityNames(MISSION_ID, 1, 'C')).rejects.toBeInstanceOf(
+        NotFoundError
+      );
     });
   });
 
@@ -245,7 +256,9 @@ describe('mission.service', () => {
     it('generates the default Hebrew mission name when no clone source is given', async () => {
       missionRepository.findAllNames.mockResolvedValue([`${NAME_GENERATION.MISSION_PREFIX}1`]);
 
-      await expect(service.generateNextMissionName()).resolves.toBe(`${NAME_GENERATION.MISSION_PREFIX}2`);
+      await expect(service.generateNextMissionName()).resolves.toBe(
+        `${NAME_GENERATION.MISSION_PREFIX}2`
+      );
     });
   });
 

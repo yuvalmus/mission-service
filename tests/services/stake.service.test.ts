@@ -7,18 +7,17 @@ import {
   createLoggerMock,
   createMissionServiceMock,
   createStakeRepositoryMock,
-  createUnitOfWorkMock,
+  createUnitOfWorkMock
 } from '../fixtures/mission.fixtures';
 import { buildCircle } from '../fixtures/entity.fixtures';
-import { describe, it } from 'node:test';
 
 const STAKE_ID = '5f607182-6666-4777-8888-9999aaaabbbb';
 
 const buildStake = (overrides: Partial<Stake> = {}): Stake => ({
   id: STAKE_ID,
-  patrickName: 'Patrick100',
+  patrickName: 'patrick100',
   versionNumber: 1,
-  ...overrides,
+  ...overrides
 });
 
 const buildEmptyCreateStakeDto = (patrickName: string): CreateStakeDto => ({
@@ -31,8 +30,8 @@ const buildEmptyCreateStakeDto = (patrickName: string): CreateStakeDto => ({
     stakePolygons: [],
     stakePolylines: [],
     stakeSectors: [],
-    stakeRoute: [],
-  },
+    stakeRoute: []
+  }
 });
 
 describe('stake.service', () => {
@@ -47,7 +46,7 @@ describe('stake.service', () => {
     entityRepository,
     missionService,
     unitOfWork,
-    logger,
+    logger
   });
 
   describe('findStakeOfPatrick', () => {
@@ -55,7 +54,7 @@ describe('stake.service', () => {
       stakeRepository.findByPatrickName.mockResolvedValue(buildStake());
       entityRepository.findByParentId.mockResolvedValue([buildCircle()]);
 
-      const result = await service.findStakeOfPatrick('Patrick100');
+      const result = await service.findStakeOfPatrick('patrick100');
 
       expect(result.stake.id).toBe(STAKE_ID);
       expect(result.entities).toHaveLength(1);
@@ -67,10 +66,10 @@ describe('stake.service', () => {
       stakeRepository.insert.mockImplementation(async (stake: any) => stake);
       entityRepository.findByParentId.mockResolvedValue([]);
 
-      const result = await service.findStakeOfPatrick('Patrick103');
+      const result = await service.findStakeOfPatrick('patrick103');
 
       expect(stakeRepository.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ patrickName: 'Patrick103', versionNumber: 1 }),
+        expect.objectContaining({ patrickName: 'patrick103', versionNumber: 1 })
       );
       expect(result.entities).toEqual([]);
     });
@@ -84,13 +83,13 @@ describe('stake.service', () => {
 
       const result = await service.createStake(dto);
 
-      expect(result.stake.patrickName).toBe('Patrick120');
+      expect(result.stake.patrickName).toBe('patrick120');
       expect(missionService.addEntities).toHaveBeenCalledWith([], result.stake.id);
     });
 
     it('rejects an invalid patrick name', async () => {
       await expect(service.createStake(buildEmptyCreateStakeDto('Patrick999'))).rejects.toThrow(
-        ERROR_MESSAGES.INVALID_PATRICK('Patrick999'),
+        ERROR_MESSAGES.INVALID_PATRICK('Patrick999')
       );
     });
   });
@@ -100,13 +99,13 @@ describe('stake.service', () => {
       stakeRepository.findByPatrickName.mockResolvedValue(buildStake());
       entityRepository.findByParentId.mockResolvedValue([]);
       entityRepository.deleteByParentId.mockResolvedValue(true);
-      stakeRepository.update.mockImplementation(async (stake: any) => stake);
+      stakeRepository.bumpVersion.mockResolvedValue(true);
 
-      const result = await service.deleteStakeEntities('Patrick100');
+      const result = await service.deleteStakeEntities('patrick100');
 
       expect(result).toBe(true);
       expect(entityRepository.deleteByParentId).toHaveBeenCalledWith(STAKE_ID, {});
-      expect(stakeRepository.update).toHaveBeenCalledWith(expect.objectContaining({ versionNumber: 2 }));
+      expect(stakeRepository.bumpVersion).toHaveBeenCalledWith(STAKE_ID, {});
     });
   });
 });

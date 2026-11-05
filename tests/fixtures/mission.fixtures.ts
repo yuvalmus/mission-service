@@ -1,10 +1,10 @@
 import { Mission, MissionBase } from 'models/mission.models';
 import { CreateMissionDto, UpdateMissionDto } from 'dtos/mission.dtos';
-import { MissionRepository } from 'repositories/mission.repository';
-import { EntityRepository } from 'repositories/entity.repository';
-import { StakeRepository } from 'repositories/stake.repository';
+import { MissionRepository } from 'repositories/mission.repository.interface';
+import { EntityRepository } from 'repositories/entity.repository.interface';
+import { StakeRepository } from 'repositories/stake.repository.interface';
 import { MissionService } from 'services/mission.service';
-import { CommonActionsService } from 'services/common-actions.service';
+import { CommonActionsService } from 'services/common.actions.service';
 import { RouteService } from 'services/route.service';
 import { TransactionContext, UnitOfWork } from 'database/database.types';
 import { AppLogger } from 'utils/logger.util';
@@ -25,7 +25,7 @@ export const buildMission = (overrides: Partial<Mission> = {}): Mission => ({
   attachedMissionId: undefined,
   versionNumber: 1,
   sonicProperties: undefined,
-  ...overrides,
+  ...overrides
 });
 
 export const buildMissionBase = (overrides: Partial<MissionBase> = {}): MissionBase => {
@@ -33,7 +33,9 @@ export const buildMissionBase = (overrides: Partial<MissionBase> = {}): MissionB
   return { ...base, ...overrides };
 };
 
-export const buildCreateMissionDto = (overrides: Partial<CreateMissionDto> = {}): CreateMissionDto => ({
+export const buildCreateMissionDto = (
+  overrides: Partial<CreateMissionDto> = {}
+): CreateMissionDto => ({
   name: MISSION_NAME,
   comment: 'a comment',
   createdBy: 'tester',
@@ -41,10 +43,12 @@ export const buildCreateMissionDto = (overrides: Partial<CreateMissionDto> = {})
   password: 'secret',
   sonicProperties: undefined,
   attachedMissionId: undefined,
-  ...overrides,
+  ...overrides
 });
 
-export const buildUpdateMissionDto = (overrides: Partial<UpdateMissionDto> = {}): UpdateMissionDto => ({
+export const buildUpdateMissionDto = (
+  overrides: Partial<UpdateMissionDto> = {}
+): UpdateMissionDto => ({
   id: MISSION_ID,
   name: MISSION_NAME,
   comment: 'a comment',
@@ -52,7 +56,7 @@ export const buildUpdateMissionDto = (overrides: Partial<UpdateMissionDto> = {})
   missionType: 'Training',
   password: 'secret',
   attachedMissionId: undefined,
-  ...overrides,
+  ...overrides
 });
 
 export const createMissionRepositoryMock = (): jest.Mocked<MissionRepository> => ({
@@ -64,7 +68,8 @@ export const createMissionRepositoryMock = (): jest.Mocked<MissionRepository> =>
   findIdByName: jest.fn(),
   searchByName: jest.fn(),
   update: jest.fn(),
-  delete: jest.fn(),
+  bumpVersion: jest.fn(),
+  delete: jest.fn()
 });
 
 export const createEntityRepositoryMock = (): jest.Mocked<EntityRepository> => ({
@@ -73,10 +78,10 @@ export const createEntityRepositoryMock = (): jest.Mocked<EntityRepository> => (
   findByParentId: jest.fn(),
   findByType: jest.fn(),
   findNamesByParentId: jest.fn(),
-  isNameTaken: jest.fn(),
+  isNameExists: jest.fn(),
   update: jest.fn(),
   deleteById: jest.fn(),
-  deleteByParentId: jest.fn(),
+  deleteByParentId: jest.fn()
 });
 
 export const createStakeRepositoryMock = (): jest.Mocked<StakeRepository> => ({
@@ -84,18 +89,19 @@ export const createStakeRepositoryMock = (): jest.Mocked<StakeRepository> => ({
   findById: jest.fn(),
   findByPatrickName: jest.fn(),
   update: jest.fn(),
+  bumpVersion: jest.fn()
 });
 
 export const createCommonActionsMock = (): jest.Mocked<CommonActionsService> => ({
   validateParentExists: jest.fn(),
-  bumpParentVersion: jest.fn(),
+  bumpParentVersion: jest.fn()
 });
 
 export const createRouteServiceMock = (): jest.Mocked<RouteService> => ({
   getFullRoute: jest.fn(),
   addRoute: jest.fn(),
   updateRoute: jest.fn(),
-  cloneRoute: jest.fn(),
+  cloneRoute: jest.fn()
 });
 
 export type UnitOfWorkMock = UnitOfWork & { run: jest.Mock };
@@ -108,8 +114,7 @@ export const createUnitOfWorkMock = (): UnitOfWorkMock => {
 export const createLoggerMock = (): jest.Mocked<AppLogger> => ({
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
+  error: jest.fn()
 });
 
 export const createMissionServiceMock = (): jest.Mocked<MissionService> =>
@@ -121,11 +126,11 @@ export const createMissionServiceMock = (): jest.Mocked<MissionService> =>
     deleteMission: jest.fn(),
     cloneMission: jest.fn(),
     mergeMission: jest.fn(),
-    importMissions: jest.fn(),
+    createMissionList: jest.fn(),
     addEntities: jest.fn(),
     retrieveAll: jest.fn(),
     retrieveAllInList: jest.fn(),
     searchMissionsByName: jest.fn(),
     generateNextEntityNames: jest.fn(),
-    generateNextMissionName: jest.fn(),
+    generateNextMissionName: jest.fn()
   }) as unknown as jest.Mocked<MissionService>;
