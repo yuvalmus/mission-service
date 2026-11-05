@@ -116,24 +116,24 @@ export interface MissionWithEntities {
   entities: Entity[];
 }
 
-export const missionFromDto = (dto: MissionDto): MissionWithEntities => {
-  const mission: Mission = {
-    id: dto.id,
-    timeInfo: fromTimeInfoDto(dto.timeInfo),
-    name: dto.name,
-    comment: dto.comment,
-    createdBy: dto.createdBy,
-    missionType: dto.missionType,
-    password: dto.password,
-    attachedMissionId: dto.attachedMissionId,
-    versionNumber: dto.versionNumber,
-    sonicProperties: dto.sonicProperties
-  };
+export const missionFromDto = (dto: MissionDto): Mission => ({
+  id: dto.id,
+  timeInfo: fromTimeInfoDto(dto.timeInfo),
+  name: dto.name,
+  comment: dto.comment,
+  createdBy: dto.createdBy,
+  missionType: dto.missionType,
+  password: dto.password,
+  attachedMissionId: dto.attachedMissionId,
+  versionNumber: dto.versionNumber,
+  sonicProperties: dto.sonicProperties
+});
 
+export const missionEntitiesFromDto = (dto: MissionDto): Entity[] => {
   const fromDtoOf = (entityType: (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]) =>
     getEntityDefinition(entityType).fromDto;
 
-  const entities: Entity[] = [
+  return [
     ...dto.entities.circles.map(entity => fromDtoOf(ENTITY_TYPES.CIRCLE)(entity, dto.id)),
     ...dto.entities.sectors.map(entity => fromDtoOf(ENTITY_TYPES.SECTOR)(entity, dto.id)),
     ...dto.entities.polygons.map(entity => fromDtoOf(ENTITY_TYPES.POLYGON)(entity, dto.id)),
@@ -156,8 +156,6 @@ export const missionFromDto = (dto: MissionDto): MissionWithEntities => {
     ),
     ...dto.entities.routes.map((entity): Route => routeFromDto(entity, dto.id))
   ];
-
-  return { mission, entities };
 };
 
 export const applyUpdateDto = (

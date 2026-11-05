@@ -11,14 +11,10 @@ import { createStakeEntitiesFromDto } from 'mappers/stake.mapper';
 import { MissionService } from 'services/mission.service';
 import { AppLogger } from 'utils/logger.util';
 
-export interface PatrickStake {
-  stake: Stake;
-  entities: Entity[];
-}
-
 export interface StakeService {
-  findStakeOfPatrick(patrickName: Patrick): Promise<PatrickStake>;
-  createStake(dto: CreateStakeDto): Promise<PatrickStake>;
+  findStakeOfPatrick(patrickName: Patrick): Promise<Stake>;
+  findStakeEntities(stakeId: string): Promise<Entity[]>;
+  createStake(dto: CreateStakeDto): Promise<Stake>;
   deleteStakeEntities(patrickName: Patrick): Promise<boolean>;
 }
 
@@ -47,17 +43,20 @@ export const createStakeService = ({
     return stakeRepository.insert(stake);
   };
 
-  const findStakeOfPatrick = async (patrickName: Patrick): Promise<PatrickStake> => {
+  const findStakeOfPatrick = async (patrickName: Patrick): Promise<Stake> => {
     const existing = await stakeRepository.findByPatrickName(
       patrickName.toLowerCase() as Patrick
     );
-    const stake = existing ?? (await initStakeForPatrick(patrickName.toLowerCase() as Patrick));
-    const entities = await entityRepository.findByParentId(stake.id);
-    logger.info({ patrickName, count: entities.length }, 'Populated stake entities');
-    return { stake, entities };
+    return existing ?? (await initStakeForPatrick(patrickName.toLowerCase() as Patrick));
   };
 
-  const createStake = async (dto: CreateStakeDto): Promise<PatrickStake> => {
+  const findStakeEntities = async (stakeId: string): Promise<Entity[]> => {
+    const entities = await entityRepository.findByParentId(stakeId);
+    logger.info({ stakeId, count: entities.length }, 'Populated stake entities');
+    return entities;
+  };
+
+  const createStake = async (dto: CreateStakeDto): Promise<Stake> => {
     const patrickName = parsePatrick(dto.patrickName);
     if (!patrickName) {
       throw new BadRequestError(ERROR_MESSAGES.INVALID_PATRICK(dto.patrickName));
@@ -72,14 +71,12 @@ export const createStakeService = ({
 
     const entities = createStakeEntitiesFromDto(dto, stake.id);
     await missionService.addEntities(entities, stake.id);
-
-    const persisted = await entityRepository.findByParentId(stake.id);
-    return { stake, entities: persisted };
+    return stake;
   };
 
   const deleteStakeEntities = (patrickName: Patrick): Promise<boolean> =>
     unitOfWork.run(async context => {
-      const { stake } = await findStakeOfPatrick(patrickName);
+      const stake = await findStakeOfPatrick(patrickName);
 const result = await entityRepository.deleteByParentId(stake.id, context);
       await stakeRepository.bumpVersion(stake.id, context);
       logger.info({ patrickName }, 'Deleted stake entities');
@@ -88,6 +85,7 @@ const result = await entityRepository.deleteByParentId(stake.id, context);
 
   return {
     findStakeOfPatrick,
+    findStakeEntities,
     createStake,
     deleteStakeEntities
   };

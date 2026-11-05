@@ -20,6 +20,7 @@ import {
   applyUpdateDto,
   createDtoToMission,
   isMissionUnchanged,
+  missionEntitiesFromDto,
   missionFromDto
 } from 'mappers/mission.mapper';
 import { cloneEntityToMission } from 'mappers/common.entity.mapper';
@@ -31,15 +32,15 @@ import { AppLogger } from 'utils/logger.util';
 export interface MissionService {
   createMission(incomingMission: CreateMissionDto): Promise<Mission>;
   findMission(id: string): Promise<Mission | null>;
-  findMissionWithEntities(id: string): Promise<MissionWithEntities | null>;
+  findMissionEntities(id: string): Promise<Entity[]>;
   updateMission(incomingMission: UpdateMissionDto): Promise<Mission>;
   deleteMission(id: string): Promise<boolean>;
-  cloneMission(id: string): Promise<MissionWithEntities>;
+  cloneMission(id: string): Promise<Mission>;
   mergeMission(
     currentId: string,
     mergedId: string,
     layers: MissionLayer[]
-  ): Promise<MissionWithEntities | null>;
+  ): Promise<Mission | null>;
   createMissionList(missionDtos: MissionDto[]): Promise<MissionWithEntities[]>;
   addEntities(entities: Entity[], parentId: string, context?: TransactionContext): Promise<void>;
   retrieveAll(): Promise<MissionBase[]>;
@@ -91,17 +92,12 @@ export const createMissionService = ({
     return name as string;
   };
 
-  const findMissionWithEntities = async (id: string): Promise<MissionWithEntities | null> => {
-    const mission = await missionRepository.findById(id);
-    if (!mission) {
-      logger.warn({ missionId: id }, 'Mission was not found');
-      return null;
-    }
+  const findMissionEntities = async (id: string): Promise<Entity[]> => {
     const entities = await entityRepository.findByParentId(id);
     if (entities.length === 0) {
       logger.warn({ missionId: id }, 'Mission has no entities');
     }
-    return { mission, entities };
+    return entities;
   };
 
   const addEntities = async (
@@ -140,7 +136,8 @@ export const createMissionService = ({
     const splitMission: MissionWithEntities[] = [];
 
     for (const fullMission of incomingMissions) {
-      const { mission: missionInfo, entities } = missionFromDto(fullMission);
+      const missionInfo = missionFromDto(fullMission);
+      const entities = missionEntitiesFromDto(fullMission);
       const name = existingNames.includes(fullMission.name)
         ? await generateNextMissionName(fullMission.name)
         : missionInfo.name;
@@ -168,7 +165,13 @@ export const createMissionService = ({
     return mission;
   };
 
-  const findMission = (id: string): Promise<Mission | null> => missionRepository.findById(id);
+  const findMission = async (id: string): Promise<Mission | null> => {
+    const mission = await missionRepository.findById(id);
+    if (!mission) {
+      logger.warn({ missionId: id }, 'Mission was not found');
+    }
+    return mission;
+  };
 
   const updateMission = async (incomingMission: UpdateMissionDto): Promise<Mission> => {
     const mission = await missionRepository.findById(incomingMission.id);
@@ -196,44 +199,49 @@ export const createMissionService = ({
       return missionDeleted && entitiesDeleted;
     });
 
-  const cloneMission = async (id: string): Promise<MissionWithEntities> => {
-    const source = await findMissionWithEntities(id);
-    if (!source) {
+  const cloneMission = async (id: string): Promise<Mission> => {
+    const sourceMission = await findMission(id);
+    if (!sourceMission) {
       throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
     }
+    const sourceEntities = await findMissionEntities(id);
 
     const cloned: Mission = {
-      ...source.mission,
+      ...sourceMission,
       id: randomUUID(),
-      name: await generateNextMissionName(source.mission.name),
+      name: await generateNextMissionName(sourceMission.name),
       versionNumber: MISSION_CONSTANTS.BASE_VERSION_NUMBER
     };
     await missionRepository.create(cloned);
-    await cloneMissionEntities(source.entities, cloned.id);
-    return (await findMissionWithEntities(cloned.id)) as MissionWithEntities;
+    await cloneMissionEntities(sourceEntities, cloned.id);
+
+    return (await findMission(cloned.id)) as Mission;
   };
 
   const mergeMission = async (
     currentId: string,
     mergedId: string,
     layers: MissionLayer[]
-  ): Promise<MissionWithEntities | null> => {
-    const targetMission = await findMissionWithEntities(currentId);
-    const sourceMission = await findMissionWithEntities(mergedId);
+  ): Promise<Mission | null> => {
+    const targetMission = await findMission(currentId);
+    const sourceMission = await findMission(mergedId);
 
     if (targetMission && sourceMission) {
-      const entitiesToDelete = targetMission.entities.filter(entity =>
+      const targetEntities = await findMissionEntities(currentId);
+      const sourceEntities = await findMissionEntities(mergedId);
+
+      const entitiesToDelete = targetEntities.filter(entity =>
         entityMatchesAnyLayer(entity, layers)
       );
 
-      const remainingNames = targetMission.entities.map(entity => entity.name);
+      const remainingNames = targetEntities.map(entity => entity.name);
       entitiesToDelete.forEach(entity => {
         const nameIndex = remainingNames.indexOf(entity.name);
         if (nameIndex >= 0) remainingNames.splice(nameIndex, 1);
       });
 
       const entitiesToAdd: Entity[] = [];
-      sourceMission.entities
+      sourceEntities
         .filter(entity => entityMatchesAnyLayer(entity, layers))
         .forEach(entity => {
           const name = remainingNames.includes(entity.name)
@@ -256,7 +264,7 @@ export const createMissionService = ({
       await addEntities(entitiesToAdd, currentId);
     }
 
-    return findMissionWithEntities(currentId);
+    return findMission(currentId);
   };
 
   const createMissionList = async (
@@ -332,7 +340,7 @@ export const createMissionService = ({
   return {
     createMission,
     findMission,
-    findMissionWithEntities,
+    findMissionEntities,
     updateMission,
     deleteMission,
     cloneMission,

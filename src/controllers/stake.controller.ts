@@ -24,12 +24,14 @@ const parsePatrickOrThrow = (patrickName: string) => {
 export const createStakeController = (stakeService: StakeService): StakeController => ({
   getStakeOfPatrick: async (req, res) => {
     const patrick = parsePatrickOrThrow(req.params.patrickName);
-    const { stake, entities } = await stakeService.findStakeOfPatrick(patrick as Patrick);
+    const stake = await stakeService.findStakeOfPatrick(patrick as Patrick);
+    const entities = await stakeService.findStakeEntities(stake.id);
     res.status(HTTP_STATUS.OK).json(toStakeDto(stake, entities));
   },
 
   createStake: async (req, res) => {
-    const { stake, entities } = await stakeService.createStake(req.body);
+    const stake = await stakeService.createStake(req.body);
+    const entities = await stakeService.findStakeEntities(stake.id);
     res.status(HTTP_STATUS.CREATED).json(toStakeDto(stake, entities));
   },
 

@@ -64,6 +64,41 @@ describe('mission.service', () => {
     });
   });
 
+  describe('findMission', () => {
+    it('returns the mission without touching its entities', async () => {
+      missionRepository.findById.mockResolvedValue(buildMission());
+
+      const mission = await service.findMission(MISSION_ID);
+
+      expect(mission).toEqual(buildMission());
+      expect(entityRepository.findByParentId).not.toHaveBeenCalled();
+    });
+
+    it('returns null and logs a warning when the mission does not exist', async () => {
+      missionRepository.findById.mockResolvedValue(null);
+
+      await expect(service.findMission(MISSION_ID)).resolves.toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith({ missionId: MISSION_ID }, 'Mission was not found');
+    });
+  });
+
+  describe('findMissionEntities', () => {
+    it('returns the entities that belong to the mission', async () => {
+      const circle = buildCircle();
+      entityRepository.findByParentId.mockResolvedValue([circle]);
+
+      await expect(service.findMissionEntities(MISSION_ID)).resolves.toEqual([circle]);
+      expect(entityRepository.findByParentId).toHaveBeenCalledWith(MISSION_ID);
+    });
+
+    it('returns an empty list and logs a warning when the mission has no entities', async () => {
+      entityRepository.findByParentId.mockResolvedValue([]);
+
+      await expect(service.findMissionEntities(MISSION_ID)).resolves.toEqual([]);
+      expect(logger.warn).toHaveBeenCalledWith({ missionId: MISSION_ID }, 'Mission has no entities');
+    });
+  });
+
   describe('updateMission', () => {
     it('short-circuits without persisting when nothing changed', async () => {
       missionRepository.findById.mockResolvedValue(buildMission());
@@ -132,7 +167,7 @@ describe('mission.service', () => {
       missionRepository.create.mockImplementation(async mission => mission);
       entityRepository.insert.mockImplementation(async entity => entity);
 
-      const { mission: cloned } = await service.cloneMission(MISSION_ID);
+      const cloned = await service.cloneMission(MISSION_ID);
 
       expect(cloned.id).not.toBe(MISSION_ID);
       expect(cloned.name).toBe(`${MISSION_NAME}(1)`);
@@ -181,8 +216,9 @@ describe('mission.service', () => {
       entityRepository.deleteById.mockResolvedValue(true);
       entityRepository.insert.mockImplementation(async entity => entity);
 
-      await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['navigation']);
+      const result = await service.mergeMission(MISSION_ID, OTHER_MISSION_ID, ['navigation']);
 
+      expect(result).toEqual(currentMission);
       expect(entityRepository.deleteById).toHaveBeenCalledWith(currentWpt.id);
       expect(entityRepository.insert).toHaveBeenCalledTimes(1);
       const inserted = entityRepository.insert.mock.calls[0]![0];

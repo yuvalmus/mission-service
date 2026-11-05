@@ -25,17 +25,16 @@ describe('mission.controller', () => {
 
   describe('getMission', () => {
     it('returns 200 with the mission dto including grouped entities', async () => {
-      missionService.findMissionWithEntities.mockResolvedValue({
-        mission: buildMission(),
-        entities: [buildCircle()]
-      });
+      missionService.findMission.mockResolvedValue(buildMission());
+      missionService.findMissionEntities.mockResolvedValue([buildCircle()]);
       const { req, res } = createHttpContext<Request<MissionIdParams>>({
         params: { id: MISSION_ID }
       });
 
       await controller.getMission(req, res);
 
-      expect(missionService.findMissionWithEntities).toHaveBeenCalledWith(MISSION_ID);
+      expect(missionService.findMission).toHaveBeenCalledWith(MISSION_ID);
+      expect(missionService.findMissionEntities).toHaveBeenCalledWith(MISSION_ID);
       expect(res.statusCode).toBe(HTTP_STATUS.OK);
       expect(res._getJSONData()).toMatchObject({
         id: MISSION_ID,
@@ -46,7 +45,7 @@ describe('mission.controller', () => {
     });
 
     it('rejects with a NotFoundError when the mission does not exist', async () => {
-      missionService.findMissionWithEntities.mockResolvedValue(null);
+      missionService.findMission.mockResolvedValue(null);
       const { req, res } = createHttpContext<Request<MissionIdParams>>({
         params: { id: MISSION_ID }
       });
@@ -56,10 +55,11 @@ describe('mission.controller', () => {
         message: ERROR_MESSAGES.MISSION_NOT_FOUND,
         statusCode: HTTP_STATUS.NOT_FOUND
       });
+      expect(missionService.findMissionEntities).not.toHaveBeenCalled();
     });
 
     it('propagates service errors to the async error pipeline', async () => {
-      missionService.findMissionWithEntities.mockRejectedValue(new Error('boom'));
+      missionService.findMission.mockRejectedValue(new Error('boom'));
       const { req, res } = createHttpContext<Request<MissionIdParams>>({
         params: { id: MISSION_ID }
       });
@@ -137,10 +137,7 @@ describe('mission.controller', () => {
   describe('updateMission', () => {
     it('returns 200 with the updated mission dto including entities', async () => {
       missionService.updateMission.mockResolvedValue(buildMission({ versionNumber: 2 }));
-      missionService.findMissionWithEntities.mockResolvedValue({
-        mission: buildMission(),
-        entities: []
-      });
+      missionService.findMissionEntities.mockResolvedValue([]);
       const { req, res } = createHttpContext({ body: buildUpdateMissionDto() });
 
       await controller.updateMission(req, res);
@@ -179,7 +176,8 @@ describe('mission.controller', () => {
   describe('cloneMission', () => {
     it('returns 201 with the cloned mission dto', async () => {
       const cloned = buildMission({ id: OTHER_MISSION_ID, name: `${MISSION_NAME}(1)` });
-      missionService.cloneMission.mockResolvedValue({ mission: cloned, entities: [] });
+      missionService.cloneMission.mockResolvedValue(cloned);
+      missionService.findMissionEntities.mockResolvedValue([buildCircle()]);
       const { req, res } = createHttpContext<Request<MissionIdParams>>({
         params: { id: MISSION_ID }
       });
@@ -187,6 +185,8 @@ describe('mission.controller', () => {
       await controller.cloneMission(req, res);
 
       expect(missionService.cloneMission).toHaveBeenCalledWith(MISSION_ID);
+      expect(missionService.findMissionEntities).toHaveBeenCalledWith(OTHER_MISSION_ID);
+      expect(res._getJSONData().entities.circles).toHaveLength(1);
       expect(res.statusCode).toBe(HTTP_STATUS.CREATED);
       expect(res._getJSONData()).toMatchObject({
         id: OTHER_MISSION_ID,
@@ -203,7 +203,8 @@ describe('mission.controller', () => {
     };
 
     it('parses layers (unknown layers default to Navigation) and returns the merged mission', async () => {
-      missionService.mergeMission.mockResolvedValue({ mission: buildMission(), entities: [] });
+      missionService.mergeMission.mockResolvedValue(buildMission());
+      missionService.findMissionEntities.mockResolvedValue([buildCircle()]);
       const { req, res } = createHttpContext({ body: mergeBody });
 
       await controller.mergeMission(req, res);
@@ -212,7 +213,9 @@ describe('mission.controller', () => {
         MISSION_LAYERS.NAVIGATION,
         MISSION_LAYERS.NAVIGATION
       ]);
+      expect(missionService.findMissionEntities).toHaveBeenCalledWith(MISSION_ID);
       expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res._getJSONData().entities.circles).toHaveLength(1);
     });
 
     it('rejects with a NotFoundError when the current mission does not exist', async () => {
@@ -224,6 +227,7 @@ describe('mission.controller', () => {
         message: ERROR_MESSAGES.MISSION_NOT_FOUND,
         statusCode: HTTP_STATUS.NOT_FOUND
       });
+      expect(missionService.findMissionEntities).not.toHaveBeenCalled();
     });
   });
 

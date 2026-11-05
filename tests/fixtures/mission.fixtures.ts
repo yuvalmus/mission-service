@@ -121,7 +121,7 @@ export const createMissionServiceMock = (): jest.Mocked<MissionService> =>
   ({
     createMission: jest.fn(),
     findMission: jest.fn(),
-    findMissionWithEntities: jest.fn(),
+    findMissionEntities: jest.fn(),
     updateMission: jest.fn(),
     deleteMission: jest.fn(),
     cloneMission: jest.fn(),

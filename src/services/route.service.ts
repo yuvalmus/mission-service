@@ -59,7 +59,8 @@ export const createRouteService = ({
     const route = await entityRetriever.findEntityOfType<Route>(ENTITY_TYPES.ROUTE, routeId);
     if (!route) return null;
     const routeWpts = await routeWptService.getRouteWpts(route);
-    return { route, routeWpts };
+    const fullRoute: FullRoute = { route, routeWpts };
+    return fullRoute;
   };
 
   const addRoute = async (

@@ -1,6 +1,6 @@
 import { ENTITY_TYPES, ROUTE_PROVIDERS, ROUTE_VIEW_MODES } from 'constants/entity.constants';
 import { createTimeInfo } from 'models/time.models';
-import { Route, RouteLeg } from 'models/route.models';
+import { LegHighPoint, Route, RouteLeg } from 'models/route.models';
 import { Wpt } from 'models/entities.models';
 import {
   CreateOrUpdateRouteDto,
@@ -16,7 +16,8 @@ import { wptAsCreateRouteWptDto } from 'mappers/entities.mapper';
 import { FEET_IN_METER } from 'utils/geo.util';
 
 const highPointFromDto = (dto: LegHighPointDto): RouteLeg['highestPoint'] => {
-  return { nz: fromGeoDto(dto.nz), altitudeFeet: dto.altitude.feet };
+  const highPoint: LegHighPoint = { nz: fromGeoDto(dto.nz), altitudeFeet: dto.altitude.feet };
+  return highPoint;
 };
 
 const highPointToDto = (highestPoint: RouteLeg['highestPoint']): LegHighPointDto =>

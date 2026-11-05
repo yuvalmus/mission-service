@@ -50,41 +50,59 @@ describe('stake.service', () => {
   });
 
   describe('findStakeOfPatrick', () => {
-    it('returns the existing stake with its entities', async () => {
+    it('returns the existing stake', async () => {
       stakeRepository.findByPatrickName.mockResolvedValue(buildStake());
-      entityRepository.findByParentId.mockResolvedValue([buildCircle()]);
 
       const result = await service.findStakeOfPatrick('patrick100');
 
-      expect(result.stake.id).toBe(STAKE_ID);
-      expect(result.entities).toHaveLength(1);
+      expect(result.id).toBe(STAKE_ID);
       expect(stakeRepository.insert).not.toHaveBeenCalled();
+      expect(entityRepository.findByParentId).not.toHaveBeenCalled();
     });
 
     it('initializes an empty stake when the patrick has none', async () => {
       stakeRepository.findByPatrickName.mockResolvedValue(null);
       stakeRepository.insert.mockImplementation(async (stake: any) => stake);
-      entityRepository.findByParentId.mockResolvedValue([]);
 
       const result = await service.findStakeOfPatrick('patrick103');
 
       expect(stakeRepository.insert).toHaveBeenCalledWith(
         expect.objectContaining({ patrickName: 'patrick103', versionNumber: 1 })
       );
-      expect(result.entities).toEqual([]);
+      expect(result).toMatchObject({ patrickName: 'patrick103', versionNumber: 1 });
+    });
+  });
+
+  describe('findStakeEntities', () => {
+    it('returns the entities that belong to the stake', async () => {
+      const circle = buildCircle();
+      entityRepository.findByParentId.mockResolvedValue([circle]);
+
+      await expect(service.findStakeEntities(STAKE_ID)).resolves.toEqual([circle]);
+      expect(entityRepository.findByParentId).toHaveBeenCalledWith(STAKE_ID);
+      expect(logger.info).toHaveBeenCalledWith(
+        { stakeId: STAKE_ID, count: 1 },
+        'Populated stake entities'
+      );
+    });
+
+    it('returns an empty list when the stake has no entities', async () => {
+      entityRepository.findByParentId.mockResolvedValue([]);
+
+      await expect(service.findStakeEntities(STAKE_ID)).resolves.toEqual([]);
     });
   });
 
   describe('createStake', () => {
     it('creates the stake and adds its entities through the mission service', async () => {
       stakeRepository.insert.mockImplementation(async (stake: any) => stake);
-      entityRepository.findByParentId.mockResolvedValue([buildCircle()]);
       const dto = buildEmptyCreateStakeDto('Patrick120');
 
       const result = await service.createStake(dto);
 
-      expect(result.stake.patrickName).toBe('patrick120');
-      expect(missionService.addEntities).toHaveBeenCalledWith([], result.stake.id);
+      expect(result.patrickName).toBe('patrick120');
+      expect(missionService.addEntities).toHaveBeenCalledWith([], result.id);
+      expect(entityRepository.findByParentId).not.toHaveBeenCalled();
     });
 
     it('rejects an invalid patrick name', async () => {

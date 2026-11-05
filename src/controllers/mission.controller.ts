@@ -41,11 +41,12 @@ const parseMissionLayer = (layer: string): MissionLayer =>
 
 export const createMissionController = (missionService: MissionService): MissionController => ({
   getMission: async (req, res) => {
-    const result = await missionService.findMissionWithEntities(req.params.id);
-    if (!result) {
+    const mission = await missionService.findMission(req.params.id);
+    if (!mission) {
       throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
     }
-    res.status(HTTP_STATUS.OK).json(toMissionDto(result.mission, result.entities));
+    const entities = await missionService.findMissionEntities(mission.id);
+    res.status(HTTP_STATUS.OK).json(toMissionDto(mission, entities));
   },
 
   getAllBasicMissions: async (_req, res) => {
@@ -81,8 +82,8 @@ export const createMissionController = (missionService: MissionService): Mission
 
   updateMission: async (req, res) => {
     const missionInfo = await missionService.updateMission(req.body);
-    const missionWithEntities = await missionService.findMissionWithEntities(missionInfo.id);
-    res.status(HTTP_STATUS.OK).json(toMissionDto(missionInfo, missionWithEntities?.entities ?? []));
+    const entities = await missionService.findMissionEntities(missionInfo.id);
+    res.status(HTTP_STATUS.OK).json(toMissionDto(missionInfo, entities));
   },
 
   deleteMission: async (req, res) => {
@@ -94,17 +95,19 @@ export const createMissionController = (missionService: MissionService): Mission
   },
 
   cloneMission: async (req, res) => {
-    const { mission, entities } = await missionService.cloneMission(req.params.id);
+    const mission = await missionService.cloneMission(req.params.id);
+    const entities = await missionService.findMissionEntities(mission.id);
     res.status(HTTP_STATUS.CREATED).json(toMissionDto(mission, entities));
   },
 
   mergeMission: async (req, res) => {
     const layers = req.body.missionLayers.map(parseMissionLayer);
-    const result = await missionService.mergeMission(req.body.currentId, req.body.mergedId, layers);
-    if (!result) {
+    const mission = await missionService.mergeMission(req.body.currentId, req.body.mergedId, layers);
+    if (!mission) {
       throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
     }
-    res.status(HTTP_STATUS.OK).json(toMissionDto(result.mission, result.entities));
+    const entities = await missionService.findMissionEntities(mission.id);
+    res.status(HTTP_STATUS.OK).json(toMissionDto(mission, entities));
   },
 
   createMissionList: async (req, res) => {
