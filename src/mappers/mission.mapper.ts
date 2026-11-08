@@ -10,7 +10,11 @@ import {
   MissionEntitiesDto,
   UpdateMissionDto
 } from 'dtos/mission.dtos';
-import { getEntityDefinition } from 'mappers/entity.registry';
+import {
+  EntityDefinitions,
+  EntityDefinitionType,
+  getEntityDefinition
+} from 'mappers/entity.registry';
 import { routeFromDto, routeToDto } from 'mappers/route.mapper';
 import { fromTimeInfoDto, toTimeInfoDto } from 'mappers/common.entity.mapper';
 import { Route } from 'models/route.models';
@@ -46,40 +50,40 @@ export const toMissionEntitiesDto = (entities: readonly Entity[]): MissionEntiti
   entities.forEach(entity => {
     switch (entity.entityType) {
       case ENTITY_TYPES.SECTOR:
-        dto.sectors.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.sectors.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.CIRCLE:
-        dto.circles.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.circles.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.POLYGON:
-        dto.polygons.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.polygons.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.CORRIDOR:
-        dto.corridors.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.corridors.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.POLYLINE:
-        dto.polylines.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.polylines.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.NAVIGATION_WAY_POINT:
-        dto.wpts.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.wpts.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.LANDING_ZONE:
-        dto.landingZones.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.landingZones.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ELIAHU:
-        dto.eliahus.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.eliahus.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ISLAND:
-        dto.universeIslands.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.universeIslands.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.LAMINE:
-        dto.lamines.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.lamines.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.SYMBOL_POINT:
-        dto.symbolPoints.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.symbolPoints.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.MESSI:
-        dto.messis.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.messis.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ROUTE:
         dto.routes.push(routeToDto(entity));
@@ -130,8 +134,9 @@ export const missionFromDto = (dto: MissionDto): Mission => ({
 });
 
 export const missionEntitiesFromDto = (dto: MissionDto): Entity[] => {
-  const fromDtoOf = (entityType: (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]) =>
-    getEntityDefinition(entityType).fromDto;
+  const fromDtoOf = <K extends EntityDefinitionType>(
+    entityType: K
+  ): EntityDefinitions[K]['fromDto'] => getEntityDefinition(entityType).fromDto;
 
   return [
     ...dto.entities.circles.map(entity => fromDtoOf(ENTITY_TYPES.CIRCLE)(entity, dto.id)),
