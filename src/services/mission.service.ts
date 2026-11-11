@@ -283,39 +283,35 @@ export const createMissionService = ({
     logger.info({ count: incomingMissions.length }, 'Attempting to create a mission list');
     const splitMission = await getSplitMission(incomingMissions);
 
-    const created = await unitOfWork.run(async transactionContext => {
-      for (const { mission, entities } of splitMission) {
-        const cloned: Mission = { ...mission, id: randomUUID() };
-        await missionRepository.create(cloned, transactionContext);
+    for (const { mission, entities } of splitMission) {
+      const cloned: Mission = { ...mission, id: randomUUID() };
+      await missionRepository.create(cloned);
 
-        const originalWpts = entities.filter(
-          entity => entity.entityType === ENTITY_TYPES.NAVIGATION_WAY_POINT
-        );
-        await Promise.all(
-          originalWpts.map(async wpt => {
-            await entityRepository.insert({ ...wpt, parentId: cloned.id }, transactionContext);
-            await commonActions.bumpParentVersion(cloned.id, transactionContext);
-          })
-        );
+      const originalWpts = entities.filter(
+        entity => entity.entityType === ENTITY_TYPES.NAVIGATION_WAY_POINT
+      );
+      await Promise.all(
+        originalWpts.map(async wpt => {
+          await entityRepository.insert({ ...wpt, parentId: cloned.id });
+          await commonActions.bumpParentVersion(cloned.id);
+        })
+      );
 
-        await cloneMissionEntities(
-          entities.map(entity => ({ ...entity, parentId: cloned.id })),
-          cloned.id,
-          transactionContext
-        );
+      await cloneMissionEntities(
+        entities.map(entity => ({ ...entity, parentId: cloned.id })),
+        cloned.id
+      );
 
-        await Promise.all(
-          originalWpts.map(async wpt => {
-            await entityRepository.deleteById(wpt.id, transactionContext);
-            await commonActions.bumpParentVersion(cloned.id, transactionContext);
-          })
-        );
-      }
+      await Promise.all(
+        originalWpts.map(async wpt => {
+          await entityRepository.deleteById(wpt.id);
+          await commonActions.bumpParentVersion(cloned.id);
+        })
+      );
+    }
 
-      return splitMission;
-    });
-    logger.info({ count: created.length }, 'Mission list created');
-    return created;
+    logger.info({ count: splitMission.length }, 'Mission list created');
+    return splitMission;
   };
 
   const retrieveAll =(): Promise<MissionBase[]> => missionRepository.findAllBasic();

@@ -3,9 +3,11 @@ import { z } from 'zod';
 import { SERVICE, STATIONS } from 'constants/app.constants';
 
 const logTypes = {
+  FATAL: 'fatal',
   ERROR: 'error',
   WARN: 'warn',
-  INFO: 'info'
+  INFO: 'info',
+  DEBUG: 'debug'
 } as const;
 
 const ENV_DEFAULTS = {
