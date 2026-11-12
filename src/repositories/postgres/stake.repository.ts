@@ -1,9 +1,10 @@
 import { DatabaseError } from 'pg';
 import { PG_TABLES } from 'constants/postgres.constants';
+import { TransactionContext } from 'database/database.types';
 import { PostgresDatabase } from 'database/postgres.database';
 import { DatabaseOperationError } from 'errors/app.errors';
 import { Patrick, Stake, STAKE_CONSTANTS } from 'models/stake.models';
-import { StakeRepository } from 'repositories/stake.repository';
+import { StakeRepository } from 'repositories/stake.repository.interface';
 import { isUuid } from 'utils/sql.util';
 
 export interface PostgresStakeRepositoryDeps {
@@ -49,13 +50,26 @@ const UPDATE_INFRA = `
     AND ${ACTIVE_ONLY}
 `;
 
+const BUMP_INFRA_VERSION = `
+  UPDATE ${PG_TABLES.INFRA}
+  SET version_number = version_number + 1,
+      last_update_time = NOW()
+  WHERE id = $1
+    AND ${ACTIVE_ONLY}
+  RETURNING id
+`;
+
 export const createPostgresStakeRepository = ({
   database,
   nodeName,
 }: PostgresStakeRepositoryDeps): StakeRepository => {
-  const query = async <T extends object>(sql: string, values: unknown[] = []): Promise<T[]> => {
+  const query = async <T extends object>(
+    sql: string,
+    values: unknown[] = [],
+    context?: TransactionContext,
+  ): Promise<T[]> => {
     try {
-      const result = await database.withContext(undefined, (client) => client.query<T>(sql, values));
+      const result = await database.withContext(context, (client) => client.query<T>(sql, values));
       return result.rows;
     } catch (error) {
       if (error instanceof DatabaseError) throw new DatabaseOperationError(error.message);
@@ -72,9 +86,15 @@ export const createPostgresStakeRepository = ({
       return stake;
     },
 
-    update: async (stake) => {
-      await query(UPDATE_INFRA, [stake.id, stake.patrickName, stake.versionNumber, nodeName]);
+    update: async (stake, context) => {
+      await query(UPDATE_INFRA, [stake.id, stake.patrickName, stake.versionNumber, nodeName], context);
       return stake;
+    },
+
+    bumpVersion: async (id, context) => {
+      if (!isUuid(id)) return false;
+      const rows = await query(BUMP_INFRA_VERSION, [id], context);
+      return rows.length > 0;
     },
 
     findById: async (id) => {

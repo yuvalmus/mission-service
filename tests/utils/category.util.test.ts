@@ -17,21 +17,21 @@ describe('category.util', () => {
 
   describe('validateStakeCategory', () => {
     it('allows a stake category on a stake path', () => {
-      expect(() => validateStakeCategory('TrainingLow', true)).not.toThrow();
+      expect(() => validateStakeCategory('trainingLow', true)).not.toThrow();
     });
 
     it('allows a non-stake category on a non-stake path', () => {
-      expect(() => validateStakeCategory('General', false)).not.toThrow();
+      expect(() => validateStakeCategory('general', false)).not.toThrow();
     });
 
     it('rejects a non-stake category on a stake path', () => {
-      expect(() => validateStakeCategory('General', true)).toThrow(
+      expect(() => validateStakeCategory('general', true)).toThrow(
         new BadRequestError(ERROR_MESSAGES.NON_STAKE_CATEGORY_ON_STAKE_PATH),
       );
     });
 
     it('rejects a stake category on a non-stake path', () => {
-      expect(() => validateStakeCategory('TrainingLow', false)).toThrow(
+      expect(() => validateStakeCategory('trainingLow', false)).toThrow(
         new BadRequestError(ERROR_MESSAGES.STAKE_CATEGORY_ON_NON_STAKE_PATH),
       );
     });

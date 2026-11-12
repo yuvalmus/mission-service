@@ -45,10 +45,10 @@ docs follow automatically.
 | `NODE_ENV`                  | `development`               | `development` \| `test` \| `production`                        |
 | `SERVICE_NAME`              | `mission-service`           | Used in logs and health output                                 |
 | `STATION`                   | `Air`                       | `Ground` → MongoDB, `Edge` → PostgreSQL, anything else → Redis |
-| `MONGO_URI`                 | `mongodb://localhost:27017` | Used when `STATION=Ground`                                     |
+| `MONGO_URL`                 | `mongodb://localhost:27017` | Used when `STATION=Ground`                                     |
 | `MONGO_DB_NAME`             | `Mission`                   |                                                                |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379`        | Used when `STATION=Air`                                        |
-| `LOG_LEVEL`                 | `info`                      | pino level                                                     |
+| `LOG_LEVEL`                 | `info`                      | more options: `fatal`, `error`, `warn`, `info`, `debug`        |
 
 **Edge station only** (see [The mesh](#the-mesh-postgresql--pglogical--nats)):
 

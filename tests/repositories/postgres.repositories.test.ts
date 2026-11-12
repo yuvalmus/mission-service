@@ -165,25 +165,50 @@ describe('postgres repositories', () => {
 
       expect(await missionRepository().findById(MISSION_ID)).toEqual(mission);
     });
+
+    it('bumps the version in one atomic update inside the caller transaction', async () => {
+      const withContext = jest.spyOn(mock.value.database, 'withContext');
+      const context = { raw: {} } as never;
+      mock.value.queueResult([{ id: MISSION_ID }]);
+
+      expect(await missionRepository().bumpVersion(MISSION_ID, context)).toBe(true);
+      expect(normalizeSql(mock.value.lastQuery()?.sql ?? '')).toContain(
+        `UPDATE ${PG_TABLES.MISSIONS} SET version_number = version_number + 1`,
+      );
+      expect(withContext).toHaveBeenCalledWith(context, expect.any(Function));
+    });
+
+    it('reports no bump when the mission does not exist', async () => {
+      expect(await missionRepository().bumpVersion(MISSION_ID)).toBe(false);
+    });
   });
 
   describe('stake repository', () => {
     it('stores a stake in the infra table keyed by its squadron', async () => {
-      await stakeRepository().insert({ id: STAKE_ID, patrickName: 'patrick1', versionNumber: 1 });
+      await stakeRepository().insert({ id: STAKE_ID, patrickName: 'patrick100', versionNumber: 1 });
 
       const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
       expect(sql).toContain(`INSERT INTO ${PG_TABLES.INFRA} (id, squadron, version_number, origin_node)`);
-      expect(mock.value.lastQuery()?.values).toEqual([STAKE_ID, 'patrick1', 1, NODE_NAME]);
+      expect(mock.value.lastQuery()?.values).toEqual([STAKE_ID, 'patrick100', 1, NODE_NAME]);
     });
 
     it('finds a stake by the squadron column', async () => {
-      mock.value.queueResult([{ id: STAKE_ID, squadron: 'patrick1', version_number: 3 }]);
+      mock.value.queueResult([{ id: STAKE_ID, squadron: 'patrick100', version_number: 3 }]);
 
-      expect(await stakeRepository().findByPatrickName('patrick1')).toEqual({
+      expect(await stakeRepository().findByPatrickName('patrick100')).toEqual({
         id: STAKE_ID,
-        patrickName: 'patrick1',
+        patrickName: 'patrick100',
         versionNumber: 3,
       });
+    });
+
+    it('bumps the stake version in one atomic update', async () => {
+      mock.value.queueResult([{ id: STAKE_ID }]);
+
+      expect(await stakeRepository().bumpVersion(STAKE_ID)).toBe(true);
+      expect(normalizeSql(mock.value.lastQuery()?.sql ?? '')).toContain(
+        `UPDATE ${PG_TABLES.INFRA} SET version_number = version_number + 1`,
+      );
     });
   });
 });

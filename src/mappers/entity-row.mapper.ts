@@ -7,7 +7,7 @@ import {
   GeometryKind,
 } from 'constants/postgres.constants';
 import { GeoCoordinate } from 'models/geo.models';
-import { AnyEntity, EntitySchema } from 'models/entity-union.models';
+import { Entity, EntitySchema } from 'models/entity.union.models';
 
 /** GeoJSON position order is [longitude, latitude]. */
 type GeoJsonPosition = [number, number];
@@ -84,12 +84,12 @@ const toPosition = (coordinate: GeoCoordinate): GeoJsonPosition => [
   quantize(coordinate.latitude),
 ];
 
-const readCoordinateList = (entity: AnyEntity): GeoCoordinate[] => {
+const readCoordinateList = (entity: Entity): GeoCoordinate[] => {
   const raw = (entity as Record<string, unknown>)[ENTITY_KEYS.COORDINATES];
   return Array.isArray(raw) ? raw.filter(isGeoCoordinate) : [];
 };
 
-const readPosition = (entity: AnyEntity): GeoCoordinate | null => {
+const readPosition = (entity: Entity): GeoCoordinate | null => {
   const raw = (entity as Record<string, unknown>)[ENTITY_KEYS.POSITION];
   return isGeoCoordinate(raw) ? raw : null;
 };
@@ -103,24 +103,24 @@ const closeRing = (positions: GeoJsonPosition[]): GeoJsonPosition[] => {
   return isClosed ? positions : [...positions, first];
 };
 
-const buildPointGeometry = (entity: AnyEntity): GeoJsonGeometry | null => {
+const buildPointGeometry = (entity: Entity): GeoJsonGeometry | null => {
   const position = readPosition(entity);
   return position ? { type: GEOJSON_TYPES.POINT, coordinates: toPosition(position) } : null;
 };
 
-const buildPolygonGeometry = (entity: AnyEntity): GeoJsonGeometry | null => {
+const buildPolygonGeometry = (entity: Entity): GeoJsonGeometry | null => {
   const positions = readCoordinateList(entity).map(toPosition);
   if (positions.length < GEOMETRY.POLYGON_MIN_POINTS) return null;
   return { type: GEOJSON_TYPES.POLYGON, coordinates: [closeRing(positions)] };
 };
 
-const buildLineStringGeometry = (entity: AnyEntity): GeoJsonGeometry | null => {
+const buildLineStringGeometry = (entity: Entity): GeoJsonGeometry | null => {
   const positions = readCoordinateList(entity).map(toPosition);
   if (positions.length < GEOMETRY.LINESTRING_MIN_POINTS) return null;
   return { type: GEOJSON_TYPES.LINE_STRING, coordinates: positions };
 };
 
-const GEOMETRY_BUILDERS: Record<GeometryKind, (entity: AnyEntity) => GeoJsonGeometry | null> = {
+const GEOMETRY_BUILDERS: Record<GeometryKind, (entity: Entity) => GeoJsonGeometry | null> = {
   [GEOMETRY_KINDS.POINT]: buildPointGeometry,
   [GEOMETRY_KINDS.POLYGON]: buildPolygonGeometry,
   [GEOMETRY_KINDS.LINESTRING]: buildLineStringGeometry,
@@ -135,16 +135,16 @@ const GEOMETRY_BUILDERS: Record<GeometryKind, (entity: AnyEntity) => GeoJsonGeom
  * render layer have something to work with. Shapes with too few points to form a valid geometry
  * (a polygon mid-draw) project to NULL rather than being rejected.
  */
-export const toEntityGeometry = (entity: AnyEntity): GeoJsonGeometry | null =>
+export const toEntityGeometry = (entity: Entity): GeoJsonGeometry | null =>
   GEOMETRY_BUILDERS[ENTITY_GEOMETRY_KINDS[entity.entityType]](entity);
 
 /** Everything except the fields promoted to their own columns. */
-export const toEntityProperties = (entity: AnyEntity): Record<string, unknown> => {
+export const toEntityProperties = (entity: Entity): Record<string, unknown> => {
   const { id: _id, parentId: _parentId, entityType: _entityType, ...rest } = entity;
   return quantizeDeep(rest) as Record<string, unknown>;
 };
 
-export const toEntityWriteRow = (entity: AnyEntity): EntityWriteRow => ({
+export const toEntityWriteRow = (entity: Entity): EntityWriteRow => ({
   id: entity.id,
   parentId: entity.parentId,
   entityType: entity.entityType,
@@ -160,7 +160,7 @@ export const toEntityCandidate = (row: EntityRow): Record<string, unknown> => ({
 });
 
 export interface EntityRowParseResult {
-  entity: AnyEntity | null;
+  entity: Entity | null;
   issues?: unknown;
 }
 

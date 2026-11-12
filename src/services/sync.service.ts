@@ -81,7 +81,7 @@ export const createSyncService = ({ syncRepository, nodeName, logger }: SyncServ
     const entities = rows.map(toDeltaItem);
     const nextSeq = entities.reduce((highest, entity) => Math.max(highest, entity.changeSeq), sinceSeq);
 
-    logger.debug({ parentId, sinceSeq, returned: entities.length }, 'Served entity delta');
+    logger.info({ parentId, sinceSeq, returned: entities.length }, 'Served entity delta');
 
     return { parentId, sinceSeq, nextSeq, hasMore: rows.length === limit, entities };
   },

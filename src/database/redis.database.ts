@@ -10,6 +10,17 @@ export interface RedisDatabase {
 
 const PING_RESPONSE = 'PONG';
 
+export const REDIS_STATUS = {
+  WAIT: 'wait',
+  ISLANDNECTING: 'islandnecting',
+  CONNECTING: 'connecting',
+  CONNECT: 'connect',
+  READY: 'ready',
+  CLOSE: 'close',
+  END: 'end'
+} as const;
+export type RedisStatus = (typeof REDIS_STATUS)[keyof typeof REDIS_STATUS];
+
 export const createRedisDatabase = (env: Env): RedisDatabase => {
   const redis = new Redis({
     host: env.REDIS_HOST,
@@ -32,7 +43,7 @@ export const createRedisDatabase = (env: Env): RedisDatabase => {
         return false;
       }
     },
-    isConnected: () => redis.status === 'ready',
+    isConnected: () => redis.status === REDIS_STATUS.READY,
   };
 
   const unitOfWork: UnitOfWork = {

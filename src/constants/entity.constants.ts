@@ -16,91 +16,170 @@ export const ENTITY_TYPES = {
 
 export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES];
 
-export const ENTITY_SOURCES = ['universe', 'email', 'me', 'sonic', 'crd'] as const;
+export const ENTITY_SOURCES = {
+  UNIVERSE: 'universe',
+  EMAIL: 'email',
+  PM: 'pm',
+  ME: 'me',
+  SONIC: 'sonic',
+  CRD: 'crd'
+} as const;
+export type EntitySources = (typeof ENTITY_SOURCES)[keyof typeof ENTITY_SOURCES];
 
-export const LINE_STYLES = ['thickLine', 'thinLine', 'dottedLine', 'thickDottedLine'] as const;
+export const LINE_STYLES = {
+  THICK_LINE: 'thickLine',
+  THIN_LINE: 'thinLine',
+  DOTTED_LINE: 'dottedLine',
+  THICK_DOTTED_LINE: 'thickDottedLine'
+} as const;
 
-export const AREA_CATEGORIES = [
-  'general',
-  'onaviv',
-  'daily',
-  'alwaysClosed'
-] as const;
+export const AREA_CATEGORIES = {
+  GENERAL: 'general',
+  TRAINING_LOW: 'trainingLow',
+  TRAINING_HIGH: 'trainingHigh',
+  ONAVIV: 'onaviv',
+  INSPECTION: 'inspection',
+  FIRING_RANGE_ENTRANCE: 'firingRangeEntrance',
+  FIRING_RANGE: 'firingRange',
+  DAILY: 'daily',
+  ALWAYS_CLOSED: 'alwaysClosed'
+} as const;
 
-export const POLYLINE_CATEGORIES = [
-  'border',
-  'alwaysClosed',
-  'general',
-  'me',
-  'safety',
-  'fence',
-  'generalOnaviv',
-] as const;
+export const POLYLINE_CATEGORIES = {
+  BORDER: 'border',
+  ALWAYS_CLOSED: 'alwaysClosed',
+  GENERAL: 'general',
+  ME: 'me',
+  SAFETY: 'safety',
+  FENCE: 'fence',
+  GENERAL_ONAVIV: 'generalOnaviv',
+  MIB: 'mib',
+  MTBE: 'mtbe'
+} as const;
 
-export const ISLAND_CATEGORIES = ['universe', 'me', 'active'] as const;
+export const ISLAND_CATEGORIES = {
+  UNIVERSE: 'universe',
+  ME: 'me',
+  ACTIVE: 'active'
+} as const;
 
-export const POINT_CATEGORIES = [
-  'hexagon',
-  'star',
-  'octagon',
-  'sun',
-  'rhombus',
-  'obstacle300',
-  'obstacle500'
-] as const;
+export const POINT_CATEGORIES = {
+  HEXAGON: 'hexagon',
+  STAR: 'star',
+  OCTAGON: 'octagon',
+  SUN: 'sun',
+  RHOMBUS: 'rhombus',
+  OBSTACLE_300: 'obstacle300',
+  OBSTACLE_500: 'obstacle500'
+} as const;
 
-export const LAMINE_CATEGORIES = ['other', 'local', 'reut'] as const;
+export const LAMINE_CATEGORIES = {
+  OTHER: 'other',
+  LOCAL: 'local',
+  REUT: 'reut'
+} as const;
 
-export const WPT_CATEGORIES = ['user', 'luai', 'mri', 'cd', 'mark', 'linePoint'] as const;
+export const WPT_CATEGORIES = {
+  USER: 'user',
+  LUAI: 'luai',
+  MRI: 'mri',
+  CD: 'cd',
+  MARK: 'mark',
+  LINE_POINT: 'linePoint'
+} as const;
 
-export const ROUTE_CATEGORIES = ['vibucks', 'mri', 'nav'] as const;
+export const ROUTE_CATEGORIES = {
+  VIBUCKS: 'vibucks',
+  MRI: 'mri',
+  NAV: 'nav'
+} as const;
 
-export const LANDING_ZONE_CATEGORIES = ['a', 'b', 'p'] as const;
+export const LANDING_ZONE_CATEGORIES = {
+  A: 'a',
+  PM: 'pm',
+  B: 'b',
+  P: 'p'
+} as const;
 
-export const ELIAHU_CATEGORIES = ['UNKNOWN'] as const;
+export const ELIAHU_CATEGORIES = {
+  UNKNOWN: 'UNKNOWN'
+} as const;
 
 export type EliahuCategory = (typeof ELIAHU_CATEGORIES)[keyof typeof ELIAHU_CATEGORIES];
 
-export const STAKE_CATEGORIES = [
-  'a',
-  'b',
-  'mri',
-  'vibucks',
-  'cd',
-  'border',
-  'alwaysClosed',
-  'fence',
-] as const;
+export const STAKE_CATEGORIES = {
+  A: 'a',
+  B: 'b',
+  MRI: 'mri',
+  VIBUCKS: 'vibucks',
+  CD: 'cd',
+  BORDER: 'border',
+  ALWAYS_CLOSED: 'alwaysClosed',
+  FENCE: 'fence',
+  TRAINING_LOW: 'trainingLow',
+  TRAINING_HIGH: 'trainingHigh',
+  INSPECTION: 'inspection',
+  FIRING_RANGE_ENTRANCE: 'firingRangeEntrance',
+  FIRING_RANGE: 'firingRange'
+} as const;
 
-export const ELIAHU_STATUSES = ['hot', 'cold', 'mild', 'undefined'] as const;
+export const ELIAHU_STATUSES = {
+  HOT: 'hot',
+  COLD: 'cold',
+  MILD: 'mild',
+  UNDEFINED: 'undefined'
+} as const;
 
-export const LANDING_ZONE_STATUSES = [
-  'active',
-  'archive',
-  'inTest',
-  'tempCancelled',
-  'permCancelled',
-  'emergencyOnly',
-  'emergencyOnlyLamine',
-  'emergencyOnlyObstacles',
-  'nightOnly',
-  'trainings',
-  'other'
-] as const;
+export const LANDING_ZONE_STATUSES = {
+  ACTIVE: 'active',
+  ARCHIVE: 'archive',
+  IN_TEST: 'inTest',
+  TEMP_CANCELLED: 'tempCancelled',
+  PERM_CANCELLED: 'permCancelled',
+  EMERGENCY_ONLY: 'emergencyOnly',
+  EMERGENCY_ONLY_LAMINE: 'emergencyOnlyLamine',
+  EMERGENCY_ONLY_OBSTACLES: 'emergencyOnlyObstacles',
+  NIGHT_ONLY: 'nightOnly',
+  TRAININGS: 'trainings',
+  OTHER: 'other'
+} as const;
 
-export const LZ_OPERATING_TYPES = ['operationalA', 'operationalB', 'operationalC'] as const;
+export const LZ_OPERATING_TYPES = {
+  OPERATIONAL_A: 'operationalA',
+  OPERATIONAL_B: 'operationalB',
+  OPERATIONAL_C: 'operationalC'
+} as const;
 
-export const LZ_REUT_TYPES = ['reutA', 'reutB', 'reutC'] as const;
+export const LZ_REUT_TYPES = {
+  REUT_A: 'reutA',
+  REUT_B: 'reutB',
+  REUT_C: 'reutC'
+} as const;
 
-export const TIME_ZONE_AREAS = ['none', 'day', 'night'] as const;
+export const TIME_ZONE_AREAS = {
+  NONE: 'none',
+  DAY: 'day',
+  NIGHT: 'night'
+} as const;
 
-export const ROUTE_PROVIDERS = ['hair', 'usp'] as const;
+export const ROUTE_PROVIDERS = {
+  HAIR: 'hair',
+  USP: 'usp'
+} as const;
 
-export const ROUTE_VIEW_MODES = ['reduced', 'expanded', 'regular'] as const;
+export const ROUTE_VIEW_MODES = {
+  REDUCED: 'reduced',
+  EXPANDED: 'expanded',
+  REGULAR: 'regular'
+} as const;
 
-export const PATRICKS = [
-  'patrick1',
-] as const;
+export const PATRICKS = {
+  PATRICK_100: 'patrick100',
+  PATRICK_103: 'patrick103',
+  PATRICK_120: 'patrick120',
+  PATRICK_131: 'patrick131',
+  PATRICK_135: 'patrick135'
+} as const;
 
 export const NAME_MAX_LENGTHS = {
   DEFAULT: 10,
@@ -135,22 +214,6 @@ export const ANGLE_LIMITS = {
   MAX: 360
 } as const;
 
-export const ENTITY_SEGMENTS = {
-  [ENTITY_TYPES.CIRCLE]: 'circle',
-  [ENTITY_TYPES.SECTOR]: 'sector',
-  [ENTITY_TYPES.POLYGON]: 'polygon',
-  [ENTITY_TYPES.CORRIDOR]: 'corridor',
-  [ENTITY_TYPES.POLYLINE]: 'polyline',
-  [ENTITY_TYPES.NAVIGATION_WAY_POINT]: 'wpt',
-  [ENTITY_TYPES.LANDING_ZONE]: 'landingZone',
-  [ENTITY_TYPES.ELIAHU]: 'eliahu',
-  [ENTITY_TYPES.ISLAND]: 'island',
-  [ENTITY_TYPES.LAMINE]: 'lamine',
-  [ENTITY_TYPES.MESSI]: 'messi',
-  [ENTITY_TYPES.SYMBOL_POINT]: 'symbolPoint',
-  [ENTITY_TYPES.ROUTE]: 'route'
-} as const;
-
 export const ENTITY_NAME_PREFIXES = {
   [ENTITY_TYPES.CIRCLE]: 'C',
   [ENTITY_TYPES.SECTOR]: 'S',
@@ -180,8 +243,13 @@ export const MISSION_LAYERS = {
 
 export type MissionLayer = (typeof MISSION_LAYERS)[keyof typeof MISSION_LAYERS];
 
-const STAKE_STRUCTURE_AREA_CATEGORIES = [
-  'alwaysClosed',
+const STAKESTRUCTURE_AREA_CATEGORIES = [
+  AREA_CATEGORIES.TRAINING_HIGH,
+  AREA_CATEGORIES.TRAINING_LOW,
+  AREA_CATEGORIES.ALWAYS_CLOSED,
+  AREA_CATEGORIES.FIRING_RANGE,
+  AREA_CATEGORIES.FIRING_RANGE_ENTRANCE,
+  AREA_CATEGORIES.INSPECTION
 ] as const;
 
 export const MISSION_LAYER_ENTITY_CATEGORIES: Record<
@@ -189,44 +257,56 @@ export const MISSION_LAYER_ENTITY_CATEGORIES: Record<
   Partial<Record<EntityType, readonly string[]>>
 > = {
   [MISSION_LAYERS.NAVIGATION]: {
-    [ENTITY_TYPES.LANDING_ZONE]: ['a', 'b', 'p'],
-    [ENTITY_TYPES.NAVIGATION_WAY_POINT]: ['user', 'mark', 'linePoint', 'cd', 'mri', 'luai'],
-    [ENTITY_TYPES.ISLAND]: ['me', 'universe', 'active'],
-    [ENTITY_TYPES.ROUTE]: ['mri', 'vibucks', 'nav']
+    [ENTITY_TYPES.LANDING_ZONE]: Object.values(LANDING_ZONE_CATEGORIES),
+    [ENTITY_TYPES.NAVIGATION_WAY_POINT]: Object.values(WPT_CATEGORIES),
+    [ENTITY_TYPES.ISLAND]: Object.values(ISLAND_CATEGORIES),
+    [ENTITY_TYPES.ROUTE]: Object.values(ROUTE_CATEGORIES)
   },
   [MISSION_LAYERS.USER_ITEMS]: {
-    [ENTITY_TYPES.CIRCLE]: ['general'],
-    [ENTITY_TYPES.NAVIGATION_WAY_POINT]: ['obstacle300', 'obstacle500', 'general'],
-    [ENTITY_TYPES.POLYGON]: ['general'],
-    [ENTITY_TYPES.POLYLINE]: ['me', 'general'],
-    [ENTITY_TYPES.CORRIDOR]: ['general']
+    [ENTITY_TYPES.CIRCLE]: [AREA_CATEGORIES.GENERAL],
+    [ENTITY_TYPES.NAVIGATION_WAY_POINT]: [
+      POINT_CATEGORIES.OBSTACLE_300,
+      POINT_CATEGORIES.OBSTACLE_500,
+      AREA_CATEGORIES.GENERAL
+    ],
+    [ENTITY_TYPES.POLYGON]: [AREA_CATEGORIES.GENERAL],
+    [ENTITY_TYPES.POLYLINE]: [
+      POLYLINE_CATEGORIES.ME,
+      'generalPmLine',
+      'generalPm',
+      POLYLINE_CATEGORIES.GENERAL
+    ],
+    [ENTITY_TYPES.CORRIDOR]: [AREA_CATEGORIES.GENERAL]
   },
   [MISSION_LAYERS.STAKESTRUCTURE]: {
-    [ENTITY_TYPES.POLYGON]: STAKE_STRUCTURE_AREA_CATEGORIES,
-    [ENTITY_TYPES.CIRCLE]: STAKE_STRUCTURE_AREA_CATEGORIES,
+    [ENTITY_TYPES.POLYGON]: STAKESTRUCTURE_AREA_CATEGORIES,
+    [ENTITY_TYPES.CIRCLE]: STAKESTRUCTURE_AREA_CATEGORIES,
     [ENTITY_TYPES.POLYLINE]: [
-      'mtBe',
-      'safety',
-      'border',
-      'general',
-      'fence',
-      'alwaysClosed',
-      'mib',
-      ...STAKE_STRUCTURE_AREA_CATEGORIES
+      POLYLINE_CATEGORIES.MTBE,
+      POLYLINE_CATEGORIES.SAFETY,
+      POLYLINE_CATEGORIES.BORDER,
+      POLYLINE_CATEGORIES.GENERAL,
+      POLYLINE_CATEGORIES.FENCE,
+      POLYLINE_CATEGORIES.ALWAYS_CLOSED,
+      POLYLINE_CATEGORIES.MIB,
+      ...STAKESTRUCTURE_AREA_CATEGORIES
     ],
-    [ENTITY_TYPES.CORRIDOR]: STAKE_STRUCTURE_AREA_CATEGORIES
+    [ENTITY_TYPES.CORRIDOR]: STAKESTRUCTURE_AREA_CATEGORIES
   },
   [MISSION_LAYERS.REUT]: {
-    [ENTITY_TYPES.CIRCLE]: ['onaviv'],
-    [ENTITY_TYPES.POLYGON]: ['onaviv'],
-    [ENTITY_TYPES.POLYLINE]: ['generalOnaviv', 'onaviv'],
-    [ENTITY_TYPES.CORRIDOR]: ['onaviv'],
-    [ENTITY_TYPES.LAMINE]: ['reut']
+    [ENTITY_TYPES.CIRCLE]: [AREA_CATEGORIES.ONAVIV],
+    [ENTITY_TYPES.POLYGON]: [AREA_CATEGORIES.ONAVIV],
+    [ENTITY_TYPES.POLYLINE]: [
+      POLYLINE_CATEGORIES.GENERAL_ONAVIV,
+      AREA_CATEGORIES.ONAVIV
+    ],
+    [ENTITY_TYPES.CORRIDOR]: [AREA_CATEGORIES.ONAVIV],
+    [ENTITY_TYPES.LAMINE]: [LAMINE_CATEGORIES.REUT]
   },
   [MISSION_LAYERS.UTILITIES]: {},
   [MISSION_LAYERS.TRAINING_DAILY]: {
-    [ENTITY_TYPES.CIRCLE]: ['daily'],
-    [ENTITY_TYPES.POLYGON]: ['daily'],
-    [ENTITY_TYPES.CORRIDOR]: ['daily']
+    [ENTITY_TYPES.CIRCLE]: [AREA_CATEGORIES.DAILY],
+    [ENTITY_TYPES.POLYGON]: [AREA_CATEGORIES.DAILY],
+    [ENTITY_TYPES.CORRIDOR]: [AREA_CATEGORIES.DAILY]
   }
 } as const;

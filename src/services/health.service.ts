@@ -20,20 +20,30 @@ export interface HealthServiceDeps {
   serviceName: string;
 }
 
-export const createHealthService = ({ databaseClient, serviceName }: HealthServiceDeps): HealthService => ({
-  liveness: () => ({
+export const createHealthService = ({
+  databaseClient,
+  serviceName
+}: HealthServiceDeps): HealthService => {
+  const liveness = (): Pick<HealthReport, 'status' | 'service' | 'uptimeSeconds'> => ({
     status: HEALTH_STATUS.OK,
     service: serviceName,
-    uptimeSeconds: Math.round(process.uptime()),
-  }),
+    uptimeSeconds: Math.round(process.uptime())
+  });
 
-  readiness: async () => {
+  const readiness = async (): Promise<HealthReport> => {
     const databaseHealthy = await databaseClient.ping();
     return {
       status: databaseHealthy ? HEALTH_STATUS.OK : HEALTH_STATUS.UNAVAILABLE,
       service: serviceName,
       uptimeSeconds: Math.round(process.uptime()),
-      checks: { database: databaseHealthy },
+      checks: {
+        database: databaseHealthy
+      }
     };
-  },
-});
+  };
+
+  return {
+    liveness,
+    readiness
+  };
+};

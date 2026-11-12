@@ -32,6 +32,7 @@ const EntityVersionDtoSchema = z
 registry.registerPath({
   method: 'get',
   path: PATHS.DELTA,
+  operationId: 'getEntityDelta',
   tags: [TAGS.SYNC],
   summary: 'Entities changed since a given change sequence',
   description:
@@ -55,6 +56,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: PATHS.RENDER,
+  operationId: 'getRenderLayer',
   tags: [TAGS.SYNC],
   summary: 'Full render snapshot for the map layer',
   description:
@@ -72,6 +74,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: PATHS.STATUS,
+  operationId: 'getSyncStatus',
   tags: [TAGS.SYNC],
   summary: 'Current change sequence and entity count for a parent',
   request: { query: z.object({ parentId: parentIdParam }) },
@@ -87,6 +90,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: PATHS.HISTORY,
+  operationId: 'listEntityVersions',
   tags: [TAGS.SYNC],
   summary: 'Previous versions of an entity',
   description: 'Up to ten earlier versions, newest first, including states overwritten by a peer.',
@@ -102,6 +106,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: PATHS.RESTORE,
+  operationId: 'restoreEntityVersion',
   tags: [TAGS.SYNC],
   summary: 'Restore an entity to an earlier version',
   description: 'Applied as a normal update, so the replaced state is itself kept in the history.',
@@ -115,6 +120,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: PATHS.DUPLICATE,
+  operationId: 'duplicateEntityVersion',
   tags: [TAGS.SYNC],
   summary: 'Create a new entity from an earlier version',
   request: {

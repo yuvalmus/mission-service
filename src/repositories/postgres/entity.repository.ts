@@ -11,9 +11,9 @@ import {
 import { TransactionContext } from 'database/database.types';
 import { PostgresDatabase } from 'database/postgres.database';
 import { BadRequestError, DatabaseOperationError } from 'errors/app.errors';
-import { AnyEntity } from 'models/entity-union.models';
+import { Entity } from 'models/entity.union.models';
 import { EntityRow, parseEntityRow, toEntityWriteRow } from 'mappers/entity-row.mapper';
-import { EntityRepository } from 'repositories/entity.repository';
+import { EntityRepository } from 'repositories/entity.repository.interface';
 import { isUuid } from 'utils/sql.util';
 import { AppLogger } from 'utils/logger.util';
 
@@ -96,8 +96,8 @@ export const createPostgresEntityRepository = ({
   nodeName,
   logger,
 }: PostgresEntityRepositoryDeps): EntityRepository => {
-  const toDomainList = (rows: EntityRow[]): AnyEntity[] =>
-    rows.reduce<AnyEntity[]>((entities, row) => {
+  const toDomainList = (rows: EntityRow[]): Entity[] =>
+    rows.reduce<Entity[]>((entities, row) => {
       const { entity, issues } = parseEntityRow(row);
       if (!entity) {
         logger.warn({ entityId: row.entity_id, issues }, 'Skipping entity that does not match the current schema');
@@ -108,7 +108,7 @@ export const createPostgresEntityRepository = ({
 
   const writeEntity = async (
     sql: string,
-    entity: AnyEntity,
+    entity: Entity,
     context: TransactionContext | undefined,
   ): Promise<number> => {
     const row = toEntityWriteRow(entity);
@@ -142,7 +142,7 @@ export const createPostgresEntityRepository = ({
     }
   };
 
-  const selectEntities = async (where: string, values: unknown[]): Promise<AnyEntity[]> => {
+  const selectEntities = async (where: string, values: unknown[]): Promise<Entity[]> => {
     const result = await database.withContext(undefined, (client) =>
       client.query<EntityRow>(`SELECT ${ENTITY_PROJECTION} FROM ${PG_VIEWS.ACTIVE_ENTITIES} WHERE ${where}`, values),
     );
@@ -183,7 +183,7 @@ export const createPostgresEntityRepository = ({
       return result.rows.map((row) => row.name ?? '');
     },
 
-    isNameTaken: async (parentId, entityId, name) => {
+    isNameExists: async (parentId, entityId, name) => {
       const result = await database.withContext(undefined, (client) =>
         client.query(
           `SELECT 1

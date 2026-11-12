@@ -1,11 +1,15 @@
 import { ENTITY_TYPES } from 'constants/entity.constants';
-import { AnyEntity } from 'models/entity-union.models';
+import { Entity } from 'models/entity.union.models';
 import { Stake } from 'models/stake.models';
 import { CreateStakeDto, StakeDto, StakeEntitiesDto } from 'dtos/stake.dtos';
-import { getEntityDefinition } from 'mappers/entity.registry';
+import {
+  EntityDefinitions,
+  EntityDefinitionType,
+  getEntityDefinition
+} from 'mappers/entity.registry';
 import { routeFromDto, routeToDto } from 'mappers/route.mapper';
 
-export const toStakeEntitiesDto = (entities: readonly AnyEntity[]): StakeEntitiesDto => {
+export const toStakeEntitiesDto = (entities: readonly Entity[]): StakeEntitiesDto => {
   const dto: StakeEntitiesDto = {
     stakeWpts: [],
     stakeLandingZones: [],
@@ -14,31 +18,31 @@ export const toStakeEntitiesDto = (entities: readonly AnyEntity[]): StakeEntitie
     stakePolygons: [],
     stakePolylines: [],
     stakeSectors: [],
-    stakeRoute: [],
+    stakeRoute: []
   };
 
-  entities.forEach((entity) => {
+  entities.forEach(entity => {
     switch (entity.entityType) {
       case ENTITY_TYPES.NAVIGATION_WAY_POINT:
-        dto.stakeWpts.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakeWpts.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.LANDING_ZONE:
-        dto.stakeLandingZones.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakeLandingZones.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.CIRCLE:
-        dto.stakeCircles.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakeCircles.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.CORRIDOR:
-        dto.stakeCorridors.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakeCorridors.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.POLYGON:
-        dto.stakePolygons.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakePolygons.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.POLYLINE:
-        dto.stakePolylines.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakePolylines.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.SECTOR:
-        dto.stakeSectors.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.stakeSectors.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ROUTE:
         dto.stakeRoute.push(routeToDto(entity));
@@ -49,25 +53,40 @@ export const toStakeEntitiesDto = (entities: readonly AnyEntity[]): StakeEntitie
   return dto;
 };
 
-export const toStakeDto = (stake: Stake, entities: readonly AnyEntity[]): StakeDto => ({
+export const toStakeDto = (stake: Stake, entities: readonly Entity[]): StakeDto => ({
   patrickId: stake.id,
   patrickName: stake.patrickName,
   versionNumber: stake.versionNumber,
-  stakeEntities: toStakeEntitiesDto(entities),
+  stakeEntities: toStakeEntitiesDto(entities)
 });
 
-export const stakeEntitiesFromCreateDto = (dto: CreateStakeDto, stakeId: string): AnyEntity[] => {
-  const fromDtoOf = (entityType: (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]) =>
-    getEntityDefinition(entityType).fromDto;
+export const createStakeEntitiesFromDto = (dto: CreateStakeDto, stakeId: string): Entity[] => {
+  const fromDtoOf = <K extends EntityDefinitionType>(
+    entityType: K
+  ): EntityDefinitions[K]['fromDto'] => getEntityDefinition(entityType).fromDto;
 
   return [
-    ...dto.stakeEntities.stakeWpts.map((entity) => fromDtoOf(ENTITY_TYPES.NAVIGATION_WAY_POINT)(entity, stakeId)),
-    ...dto.stakeEntities.stakeLandingZones.map((entity) => fromDtoOf(ENTITY_TYPES.LANDING_ZONE)(entity, stakeId)),
-    ...dto.stakeEntities.stakeCircles.map((entity) => fromDtoOf(ENTITY_TYPES.CIRCLE)(entity, stakeId)),
-    ...dto.stakeEntities.stakeCorridors.map((entity) => fromDtoOf(ENTITY_TYPES.CORRIDOR)(entity, stakeId)),
-    ...dto.stakeEntities.stakePolygons.map((entity) => fromDtoOf(ENTITY_TYPES.POLYGON)(entity, stakeId)),
-    ...dto.stakeEntities.stakePolylines.map((entity) => fromDtoOf(ENTITY_TYPES.POLYLINE)(entity, stakeId)),
-    ...dto.stakeEntities.stakeSectors.map((entity) => fromDtoOf(ENTITY_TYPES.SECTOR)(entity, stakeId)),
-    ...dto.stakeEntities.stakeRoute.map((entity) => routeFromDto(entity, stakeId)),
+    ...dto.stakeEntities.stakeWpts.map(entity =>
+      fromDtoOf(ENTITY_TYPES.NAVIGATION_WAY_POINT)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakeLandingZones.map(entity =>
+      fromDtoOf(ENTITY_TYPES.LANDING_ZONE)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakeCircles.map(entity =>
+      fromDtoOf(ENTITY_TYPES.CIRCLE)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakeCorridors.map(entity =>
+      fromDtoOf(ENTITY_TYPES.CORRIDOR)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakePolygons.map(entity =>
+      fromDtoOf(ENTITY_TYPES.POLYGON)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakePolylines.map(entity =>
+      fromDtoOf(ENTITY_TYPES.POLYLINE)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakeSectors.map(entity =>
+      fromDtoOf(ENTITY_TYPES.SECTOR)(entity, stakeId)
+    ),
+    ...dto.stakeEntities.stakeRoute.map(entity => routeFromDto(entity, stakeId))
   ];
 };

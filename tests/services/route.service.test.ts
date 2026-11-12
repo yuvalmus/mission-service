@@ -92,13 +92,10 @@ describe('route.service', () => {
             zmmTime: undefined,
             highestPoint: {
               altitude: { feet: 0, meters: 0 },
-              nz: { datum: 'WGS84', latitude: 32, longitude: 35 }
+              nz: { datum: 'WGS84', latitude: 32, longitude: 34 }
             },
             safetyAltitude: 0,
-            legOffsets: {
-              dogHouseOffset: { offsetPixelsX: 0, offsetPixelsY: 0 },
-              timeTillZmmOffset: { offsetPixelsX: 0, offsetPixelsY: 0 }
-            },
+            legOffsets: { dogHouseOffset: { offsetPixelsX: 0, offsetPixelsY: 0 } },
             turnPoint: undefined
           }
         ]

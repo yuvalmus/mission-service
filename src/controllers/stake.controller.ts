@@ -24,18 +24,20 @@ const parsePatrickOrThrow = (patrickName: string) => {
 export const createStakeController = (stakeService: StakeService): StakeController => ({
   getStakeOfPatrick: async (req, res) => {
     const patrick = parsePatrickOrThrow(req.params.patrickName);
-    const { stake, entities } = await stakeService.findStakeOfPatrick(patrick as Patrick);
+    const stake = await stakeService.findStakeOfPatrick(patrick as Patrick);
+    const entities = await stakeService.findStakeEntities(stake.id);
     res.status(HTTP_STATUS.OK).json(toStakeDto(stake, entities));
   },
 
   createStake: async (req, res) => {
-    const { stake, entities } = await stakeService.createStake(req.body);
-    res.status(HTTP_STATUS.OK).json(toStakeDto(stake, entities));
+    const stake = await stakeService.createStake(req.body);
+    const entities = await stakeService.findStakeEntities(stake.id);
+    res.status(HTTP_STATUS.CREATED).json(toStakeDto(stake, entities));
   },
 
   deleteStakeEntities: async (req, res) => {
     const patrick = parsePatrickOrThrow(req.params.patrickName);
-    const deleted = await stakeService.deleteStakeEntities(patrick);
-    res.status(deleted ? HTTP_STATUS.OK : HTTP_STATUS.NOT_FOUND).send();
+    const deletedEntities = await stakeService.deleteStakeEntities(patrick);
+    res.status(deletedEntities ? HTTP_STATUS.NO_CONTENT : HTTP_STATUS.NOT_FOUND).send();
   }
 });

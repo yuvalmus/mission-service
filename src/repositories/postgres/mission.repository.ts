@@ -1,9 +1,10 @@
 import { DatabaseError } from 'pg';
 import { PG_TABLES } from 'constants/postgres.constants';
+import { TransactionContext } from 'database/database.types';
 import { PostgresDatabase } from 'database/postgres.database';
 import { DatabaseOperationError } from 'errors/app.errors';
 import { Mission, MissionBase, MISSION_CONSTANTS, SonicMissionProperties } from 'models/mission.models';
-import { MissionRepository } from 'repositories/mission.repository';
+import { MissionRepository } from 'repositories/mission.repository.interface';
 import { escapeLikePattern, isUuid, LIKE_ESCAPE_CHARACTER } from 'utils/sql.util';
 
 export interface PostgresMissionRepositoryDeps {
@@ -111,13 +112,26 @@ const SOFT_DELETE_MISSION = `
   RETURNING id
 `;
 
+const BUMP_MISSION_VERSION = `
+  UPDATE ${PG_TABLES.MISSIONS}
+  SET version_number = version_number + 1,
+      last_update_time = NOW()
+  WHERE id = $1
+    AND ${ACTIVE_ONLY}
+  RETURNING id
+`;
+
 export const createPostgresMissionRepository = ({
   database,
   nodeName,
 }: PostgresMissionRepositoryDeps): MissionRepository => {
-  const query = async <T extends object>(sql: string, values: unknown[] = []): Promise<T[]> => {
+  const query = async <T extends object>(
+    sql: string,
+    values: unknown[] = [],
+    context?: TransactionContext,
+  ): Promise<T[]> => {
     try {
-      const result = await database.withContext(undefined, (client) => client.query<T>(sql, values));
+      const result = await database.withContext(context, (client) => client.query<T>(sql, values));
       return result.rows;
     } catch (error) {
       if (error instanceof DatabaseError) throw new DatabaseOperationError(error.message);
@@ -129,14 +143,20 @@ export const createPostgresMissionRepository = ({
     query<MissionRow>(`SELECT ${MISSION_PROJECTION} FROM ${PG_TABLES.MISSIONS} WHERE ${where}`, values);
 
   return {
-    create: async (mission) => {
-      await query(INSERT_MISSION, toValues(mission, nodeName));
+    create: async (mission, context) => {
+      await query(INSERT_MISSION, toValues(mission, nodeName), context);
       return mission;
     },
 
-    update: async (mission) => {
-      await query(UPDATE_MISSION, toValues(mission, nodeName));
+    update: async (mission, context) => {
+      await query(UPDATE_MISSION, toValues(mission, nodeName), context);
       return mission;
+    },
+
+    bumpVersion: async (id, context) => {
+      if (!isUuid(id)) return false;
+      const rows = await query(BUMP_MISSION_VERSION, [id], context);
+      return rows.length > 0;
     },
 
     findById: async (id) => {

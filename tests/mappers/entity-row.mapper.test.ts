@@ -6,7 +6,7 @@ import {
   toEntityProperties,
   toEntityWriteRow,
 } from 'mappers/entity-row.mapper';
-import { Polygon, Polyline } from 'models/shapes.models';
+import { Polygon, Polyline } from 'models/entities.models';
 import { Route } from 'models/route.models';
 import { buildCircle, buildRoute } from '../fixtures/entity.fixtures';
 import { MISSION_ID } from '../fixtures/mission.fixtures';
