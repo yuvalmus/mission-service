@@ -1,0 +1,133 @@
+# One station of the mesh. Bring up two copies with different values files:
+#
+#   docker network create mesh-net
+#   cat deploy/shared.env deploy/station-a/values.env > deploy/.env
+#   docker compose -p station-a -f deploy/docker-compose.yml up -d --build
+#   cat deploy/shared.env deploy/station-b/values.env > deploy/.env
+#   docker compose -p station-b -f deploy/docker-compose.yml up -d --build
+#
+# Each station is self-contained: its service talks only to its own database, so a
+# station keeps serving reads and writes when the other is gone.
+#
+# Two networks per station:
+#   station   private to this station — the service and Bridge live only here
+#   mesh-net  shared between stations — only Postgres (pglogical) and NATS (leaf
+#             link) are attached, since they are the only things that cross over
+#
+# Cutting a station off from the mesh is therefore just detaching its Postgres and
+# NATS from mesh-net; everything inside the station keeps working.
+
+networks:
+  station: {}
+  mesh-net:
+    external: true
+
+services:
+  postgres:
+    build: ./postgres
+    container_name: ${NODE_NAME}-postgres
+    environment:
+      POSTGRES_USER: ${MESH_DB_USER}
+      POSTGRES_PASSWORD: ${MESH_DB_PASS}
+      POSTGRES_DB: ${MESH_DB_NAME}
+    ports:
+      - '${POSTGRES_HOST_PORT}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - station
+      - mesh-net
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${MESH_DB_USER} -d ${MESH_DB_NAME}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: ${NODE_NAME}-nats
+    command: ['-c', '/etc/nats/nats.conf']
+    volumes:
+      - ./nats/nats-${NODE_ID}.conf:/etc/nats/nats.conf:ro
+      - natsdata:/data/jetstream
+    ports:
+      - '${NATS_CLIENT_HOST_PORT}:4222'
+      - '${NATS_MONITOR_HOST_PORT}:8222'
+      - '${NATS_WS_HOST_PORT}:8080'
+    networks:
+      - station
+      - mesh-net
+    restart: unless-stopped
+
+  mission-service:
+    build:
+      context: ..
+      dockerfile: deploy/service/Dockerfile
+    container_name: ${NODE_NAME}-mission-service
+    command: ['node', 'dist/index.js']
+    environment:
+      STATION: Edge
+      NODE_ENV: production
+      PORT: ${MISSION_PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      NODE_NAME: ${NODE_NAME}
+      PEER_NODE_NAME: ${PEER_NODE_NAME}
+      MESH_NODE_INDEX: ${MESH_NODE_INDEX}
+      MESH_NODE_COUNT: ${MESH_NODE_COUNT}
+      POSTGRES_HOST: ${NODE_NAME}-postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${MESH_DB_USER}
+      POSTGRES_PASSWORD: ${MESH_DB_PASS}
+      POSTGRES_DB: ${MESH_DB_NAME}
+      PEER_POSTGRES_HOST: ${PEER_NODE_NAME}-postgres
+      PEER_POSTGRES_PORT: 5432
+      TOMBSTONE_RETENTION_MINUTES: ${TOMBSTONE_RETENTION_MINUTES}
+      GC_INTERVAL_SECONDS: ${GC_INTERVAL_SECONDS}
+      ROUTE_BACKUP_LIMIT: ${ROUTE_BACKUP_LIMIT}
+    ports:
+      - '${MISSION_HOST_PORT}:${MISSION_PORT}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - station
+    restart: unless-stopped
+
+  # Separate process on purpose: the service must never publish to NATS itself.
+  bridge:
+    build:
+      context: ..
+      dockerfile: deploy/service/Dockerfile
+    container_name: ${NODE_NAME}-bridge
+    command: ['node', 'dist/bridge/index.js']
+    environment:
+      STATION: Edge
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL}
+      NODE_NAME: ${NODE_NAME}
+      PEER_NODE_NAME: ${PEER_NODE_NAME}
+      MESH_NODE_INDEX: ${MESH_NODE_INDEX}
+      MESH_NODE_COUNT: ${MESH_NODE_COUNT}
+      POSTGRES_HOST: ${NODE_NAME}-postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${MESH_DB_USER}
+      POSTGRES_PASSWORD: ${MESH_DB_PASS}
+      POSTGRES_DB: ${MESH_DB_NAME}
+      NATS_URL: nats://${NODE_NAME}-nats:4222
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      mission-service:
+        condition: service_started
+    networks:
+      - station
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: ${NODE_NAME}_pgdata
+  natsdata:
+    name: ${NODE_NAME}_natsdata

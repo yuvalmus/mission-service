@@ -1,0 +1,153 @@
+asyncapi: 2.6.0
+
+# NATS is schema-less: it moves bytes and enforces nothing. In a mesh that means a payload change
+# shipped to one station can break a consumer on another, with no compile step to catch it. This
+# file is the contract that closes that gap — the event-side counterpart to the OpenAPI document
+# the REST layer generates from its Zod schemas.
+info:
+  title: Mission Service - Mesh Event Contract
+  version: 1.0.0
+  description: |
+    Change events published by the Bridge sidecar of each station.
+
+    Subjects are `events.<station>.mission.<parentId>.<kind>`.
+
+    The station segment exists because each station owns one JetStream stream and mirrors its
+    peer's; without it the mirrors would loop. The parent segment exists so a client subscribed to
+    one mission receives only that mission's traffic — filtering happens in the broker, not in the
+    browser.
+
+    To follow one mission across the whole mesh, subscribe to
+    `events.*.mission.<parentId>.entities`.
+
+defaultContentType: application/json
+
+servers:
+  station:
+    url: nats://localhost:4222
+    protocol: nats
+    description: The local station's NATS server. Browsers use the WebSocket port instead.
+
+channels:
+  'events.{station}.mission.{parentId}.entities':
+    description: |
+      One message per entity change, published only by the station that authored it. The payload
+      carries identifiers and versions, never geometry — a change event tells a client *what*
+      moved so it can ask for the delta, which keeps messages far below the 8KB notify ceiling.
+    parameters:
+      station:
+        description: Station that authored the change.
+        schema:
+          type: string
+      parentId:
+        description: Mission id or stake id the entity belongs to.
+        schema:
+          type: string
+          format: uuid
+    publish:
+      operationId: publishEntityDelta
+      message:
+        $ref: '#/components/messages/EntityDelta'
+      bindings:
+        nats:
+          # Nats-Msg-Id is `<entityId>-<version>`. An entity at a given version is one immutable
+          # fact, so the broker can collapse a repeat within the duplicate window — which is what
+          # makes the Bridge's catch-up replay safe to run on every restart.
+          messageId: '{entityId}-{version}'
+
+  'events.{station}.mission.{missionId}.lifecycle':
+    description: |
+      Mission created, renamed or closed. Closing a mission is reported here rather than as one
+      event per entity: a mission holding thousands of entities is masked by a single timestamp,
+      so a single lifecycle message tells every station to drop the whole layer.
+    parameters:
+      station:
+        schema:
+          type: string
+      missionId:
+        schema:
+          type: string
+          format: uuid
+    publish:
+      operationId: publishMissionLifecycle
+      message:
+        $ref: '#/components/messages/MissionLifecycle'
+
+components:
+  messages:
+    EntityDelta:
+      name: EntityDelta
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EntityDelta'
+    MissionLifecycle:
+      name: MissionLifecycle
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/MissionLifecycle'
+
+  schemas:
+    EntityDelta:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          $ref: '#/components/schemas/DeltaType'
+        parentId:
+          type: string
+          format: uuid
+        entityId:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+          description: circle, sector, polygon, corridor, polyline, navigationWayPoint, route, ...
+        version:
+          type: integer
+          description: Entity version, incremented by the database on every write.
+        lastChangeSeq:
+          type: integer
+          description: |
+            Change sequence assigned by the authoring station. Sequences are interleaved across
+            stations (station 1 emits 1,3,5..., station 2 emits 2,4,6...) so two peers writing
+            while disconnected can never assign the same number to different entities. Gaps within
+            a mission are expected and harmless.
+        isDeleted:
+          type: boolean
+          description: True for a tombstone — remove the entity from the map.
+        originNode:
+          type: string
+      required: [type, parentId, entityId, entityType, version, lastChangeSeq, isDeleted, originNode]
+
+    MissionLifecycle:
+      type: object
+      additionalProperties: false
+      properties:
+        missionId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        versionNumber:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set means the mission is masked; drop every entity beneath it.
+        operation:
+          type: string
+          enum: [created, updated]
+        originNode:
+          type: string
+      required: [missionId, name, operation, originNode]
+
+    DeltaType:
+      type: string
+      enum: [changed, reload]
+      description: |
+        `changed` names one entity. `reload` asks the client to re-fetch the render layer, used
+        when a gap is too large to stream.
