@@ -1,13 +1,13 @@
 import { z, registry } from 'config/openapi.config';
 import { MISSION_LAYERS } from 'constants/entity.constants';
-import { TimeInfoDtoSchema } from 'dtos/entity.dtos';
+import { TimeInfoDtoSchema } from 'dtos/commonEntity.dtos';
 import {
   CircleDtoSchema,
   CorridorDtoSchema,
   PolygonDtoSchema,
   PolylineDtoSchema,
   SectorDtoSchema
-} from 'dtos/shapes.dtos';
+} from 'dtos/entities.dtos';
 import {
   EliahuDtoSchema,
   LamineDtoSchema,
@@ -16,7 +16,7 @@ import {
   IslandDtoSchema,
   SymbolPointDtoSchema,
   WptDtoSchema
-} from 'dtos/points.dtos';
+} from 'dtos/entities.dtos';
 import { RouteDtoSchema } from 'dtos/route.dtos';
 
 export { TimeInfoDtoSchema };
@@ -55,7 +55,7 @@ export type CreateMissionDto = z.infer<typeof CreateMissionDtoSchema>;
 
 export const UpdateMissionDtoSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     name: z.string().min(1),
     comment: z.string().optional(),
     createdBy: z.string().optional(),
@@ -69,7 +69,7 @@ export type UpdateMissionDto = z.infer<typeof UpdateMissionDtoSchema>;
 
 export const BasicMissionDtoSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     timeInfo: TimeInfoDtoSchema,
     name: z.string(),
     comment: z.string().optional(),
@@ -126,8 +126,8 @@ export type MissionDtoList = z.infer<typeof MissionDtoListSchema>;
 
 export const MergeMissionDtoSchema = z
   .object({
-    currentId: z.string().uuid(),
-    mergedId: z.string().uuid(),
+    currentId: z.uuid(),
+    mergedId: z.uuid(),
     missionLayers: z.array(z.string())
   })
   .openapi('MergeMissionDto');
@@ -138,7 +138,7 @@ export const MISSION_LAYER_VALUES = Object.values(MISSION_LAYERS);
 
 export const MissionIdParamsSchema = z
   .object({
-    id: z.string().uuid()
+    id: z.uuid()
   })
   .openapi('MissionIdParams');
 
@@ -152,7 +152,7 @@ export const SearchNameParamsSchema = z
 
 export type SearchNameParams = z.infer<typeof SearchNameParamsSchema>;
 
-export const MissionIdListDtoSchema = z.array(z.string().uuid()).openapi('MissionIdListDto');
+export const MissionIdListDtoSchema = z.array(z.uuid()).openapi('MissionIdListDto');
 
 export type MissionIdListDto = z.infer<typeof MissionIdListDtoSchema>;
 

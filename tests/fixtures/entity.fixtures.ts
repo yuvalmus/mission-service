@@ -1,15 +1,16 @@
-import { Circle } from 'models/shapes.models';
-import { Wpt } from 'models/points.models';
+import { Circle } from 'models/entities.models';
+import { Wpt } from 'models/entities.models';
 import { Route, RouteLeg } from 'models/route.models';
 import { CreateOrUpdateRouteDto } from 'dtos/route.dtos';
-import { CreateRouteWptDto } from 'dtos/points.dtos';
-import { CreateCircleDto } from 'dtos/shapes.dtos';
-import { EntityRetrieverService } from 'services/entity-retriever.service';
-import { EntityAdderService } from 'services/entity-adder.service';
-import { EntityUpdaterService } from 'services/entity-updater.service';
-import { EntityDeleterService } from 'services/entity-deleter.service';
-import { RouteWptService } from 'services/route-wpt.service';
+import { CreateRouteWptDto } from 'dtos/entities.dtos';
+import { CreateCircleDto } from 'dtos/entities.dtos';
+import { EntityRetrieverService } from 'services/entity.retriever.service';
+import { EntityAdderService } from 'services/entity.adder.service';
+import { EntityUpdaterService } from 'services/entity.updater.service';
+import { EntityDeleterService } from 'services/entity.deleter.service';
+import { RouteWptService } from 'services/route.wpt.service';
 import { MISSION_ID, FIXED_DATE } from './mission.fixtures';
+import { WPT_CATEGORIES } from 'constants/entity.constants';
 
 export const CIRCLE_ID = '0a1b2c3d-1111-4222-8333-444455556666';
 export const WPT_ID = '1b2c3d4e-2222-4333-8444-555566667777';
@@ -130,7 +131,7 @@ export const buildCreateRouteWptDto = (
   parentId: MISSION_ID,
   name: 'NV001',
   source: 'universe',
-  category: 'linePoint',
+  category: WPT_CATEGORIES.LINE_POINT,
   altitudeFeet: 100,
   remark: '',
   isVisible: true,
@@ -193,5 +194,6 @@ export const createRouteWptServiceMock = (): jest.Mocked<RouteWptService> => ({
   getRouteWptsAsBasicDtos: jest.fn(),
   removeWpts: jest.fn(),
   createWptsForRoute: jest.fn(),
-  updateExistingWpt: jest.fn()
+  updateExistingWpt: jest.fn(),
+  updateExistingWptOfRoute: jest.fn()
 });

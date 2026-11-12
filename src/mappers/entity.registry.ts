@@ -1,6 +1,6 @@
 import { ZodTypeAny } from 'zod';
-import { ENTITY_SEGMENTS, ENTITY_TYPES, EntityType } from 'constants/entity.constants';
-import { AnyEntity } from 'models/entity-union.models';
+import { ENTITY_TYPES, EntityType } from 'constants/entity.constants';
+import { Entity } from 'models/entity.union.models';
 import {
   CircleDtoSchema,
   CorridorDtoSchema,
@@ -17,8 +17,6 @@ import {
   UpdatePolygonDtoSchema,
   UpdatePolylineDtoSchema,
   UpdateSectorDtoSchema,
-} from 'dtos/shapes.dtos';
-import {
   CreateEliahuDtoSchema,
   CreateLamineDtoSchema,
   CreateLandingZoneDtoSchema,
@@ -39,164 +37,168 @@ import {
   UpdateIslandDtoSchema,
   UpdateSymbolPointDtoSchema,
   UpdateWptDtoSchema,
-  WptDtoSchema,
-} from 'dtos/points.dtos';
-import * as shapes from 'mappers/shapes.mapper';
-import * as points from 'mappers/points.mapper';
+  WptDtoSchema
+} from 'dtos/entities.dtos';
+import * as entities from 'mappers/entities.mapper';
 
 export interface EntityDefinition {
   entityType: EntityType;
-  segment: string;
+  entityTypeSegment: string;
   createSchema: ZodTypeAny;
   updateSchema: ZodTypeAny;
   dtoSchema: ZodTypeAny;
-  fromCreateDto: (dto: unknown) => AnyEntity;
-  applyUpdate: (entity: AnyEntity, dto: unknown) => AnyEntity;
-  toDto: (entity: AnyEntity) => unknown;
-  fromDto: (dto: unknown, parentId: string) => AnyEntity;
+  createFromDto(dto: unknown): Entity;
+  applyUpdate(currentEntity: Entity, incomingEntity: unknown): Entity;
+  toDto(entity: Entity): unknown;
+  fromDto(dto: unknown, parentId: string): Entity;
 }
 
-const define = (definition: Omit<EntityDefinition, 'segment'>): EntityDefinition => ({
+const define = <T extends Omit<EntityDefinition, 'entityTypeSegment'>>(definition: T) => ({
   ...definition,
-  segment: ENTITY_SEGMENTS[definition.entityType],
+  entityTypeSegment: definition.entityType
 });
 
-export const ENTITY_DEFINITIONS: readonly EntityDefinition[] = [
-  define({
+export const ENTITY_DEFINITIONS = {
+  [ENTITY_TYPES.CIRCLE]: define({
     entityType: ENTITY_TYPES.CIRCLE,
     createSchema: CreateCircleDtoSchema,
     updateSchema: UpdateCircleDtoSchema,
     dtoSchema: CircleDtoSchema,
-    fromCreateDto: shapes.circleFromCreateDto as never,
-    applyUpdate: shapes.applyCircleUpdate as never,
-    toDto: shapes.circleToDto as never,
-    fromDto: shapes.circleFromDto as never,
+    createFromDto: entities.createCircleFromDto,
+    applyUpdate: entities.applyCircleUpdate,
+    toDto: entities.circleToDto,
+    fromDto: entities.circleFromDto
   }),
-  define({
+  [ENTITY_TYPES.SECTOR]: define({
     entityType: ENTITY_TYPES.SECTOR,
     createSchema: CreateSectorDtoSchema,
     updateSchema: UpdateSectorDtoSchema,
     dtoSchema: SectorDtoSchema,
-    fromCreateDto: shapes.sectorFromCreateDto as never,
-    applyUpdate: shapes.applySectorUpdate as never,
-    toDto: shapes.sectorToDto as never,
-    fromDto: shapes.sectorFromDto as never,
+    createFromDto: entities.createSectorFromDto,
+    applyUpdate: entities.applySectorUpdate,
+    toDto: entities.sectorToDto,
+    fromDto: entities.sectorFromDto
   }),
-  define({
+  [ENTITY_TYPES.POLYGON]: define({
     entityType: ENTITY_TYPES.POLYGON,
     createSchema: CreatePolygonDtoSchema,
     updateSchema: UpdatePolygonDtoSchema,
     dtoSchema: PolygonDtoSchema,
-    fromCreateDto: shapes.polygonFromCreateDto as never,
-    applyUpdate: shapes.applyPolygonUpdate as never,
-    toDto: shapes.polygonToDto as never,
-    fromDto: shapes.polygonFromDto as never,
+    createFromDto: entities.createPolygonFromDto,
+    applyUpdate: entities.applyPolygonUpdate,
+    toDto: entities.polygonToDto,
+    fromDto: entities.polygonFromDto
   }),
-  define({
+  [ENTITY_TYPES.CORRIDOR]: define({
     entityType: ENTITY_TYPES.CORRIDOR,
     createSchema: CreateCorridorDtoSchema,
     updateSchema: UpdateCorridorDtoSchema,
     dtoSchema: CorridorDtoSchema,
-    fromCreateDto: shapes.corridorFromCreateDto as never,
-    applyUpdate: shapes.applyCorridorUpdate as never,
-    toDto: shapes.corridorToDto as never,
-    fromDto: shapes.corridorFromDto as never,
+    createFromDto: entities.createCorridorFromDto,
+    applyUpdate: entities.applyCorridorUpdate,
+    toDto: entities.corridorToDto,
+    fromDto: entities.corridorFromDto
   }),
-  define({
+  [ENTITY_TYPES.POLYLINE]: define({
     entityType: ENTITY_TYPES.POLYLINE,
     createSchema: CreatePolylineDtoSchema,
     updateSchema: UpdatePolylineDtoSchema,
     dtoSchema: PolylineDtoSchema,
-    fromCreateDto: shapes.polylineFromCreateDto as never,
-    applyUpdate: shapes.applyPolylineUpdate as never,
-    toDto: shapes.polylineToDto as never,
-    fromDto: shapes.polylineFromDto as never,
+    createFromDto: entities.createPolylineFromDto,
+    applyUpdate: entities.applyPolylineUpdate,
+    toDto: entities.polylineToDto,
+    fromDto: entities.polylineFromDto
   }),
-  define({
+  [ENTITY_TYPES.NAVIGATION_WAY_POINT]: define({
     entityType: ENTITY_TYPES.NAVIGATION_WAY_POINT,
     createSchema: CreateWptDtoSchema,
     updateSchema: UpdateWptDtoSchema,
     dtoSchema: WptDtoSchema,
-    fromCreateDto: points.wptFromCreateDto as never,
-    applyUpdate: points.applyWptUpdate as never,
-    toDto: points.wptToDto as never,
-    fromDto: points.wptFromDto as never,
+    createFromDto: entities.createWptFromDto,
+    applyUpdate: entities.applyWptUpdate,
+    toDto: entities.wptToDto,
+    fromDto: entities.wptFromDto
   }),
-  define({
+  [ENTITY_TYPES.SYMBOL_POINT]: define({
     entityType: ENTITY_TYPES.SYMBOL_POINT,
     createSchema: CreateSymbolPointDtoSchema,
     updateSchema: UpdateSymbolPointDtoSchema,
     dtoSchema: SymbolPointDtoSchema,
-    fromCreateDto: points.symbolPointFromCreateDto as never,
-    applyUpdate: points.applySymbolPointUpdate as never,
-    toDto: points.symbolPointToDto as never,
-    fromDto: points.symbolPointFromDto as never,
+    createFromDto: entities.createSymbolPointFromDto,
+    applyUpdate: entities.applySymbolPointUpdate,
+    toDto: entities.symbolPointToDto,
+    fromDto: entities.symbolPointFromDto
   }),
-  define({
+  [ENTITY_TYPES.LANDING_ZONE]: define({
     entityType: ENTITY_TYPES.LANDING_ZONE,
     createSchema: CreateLandingZoneDtoSchema,
     updateSchema: UpdateLandingZoneDtoSchema,
     dtoSchema: LandingZoneDtoSchema,
-    fromCreateDto: points.landingZoneFromCreateDto as never,
-    applyUpdate: points.applyLandingZoneUpdate as never,
-    toDto: points.landingZoneToDto as never,
-    fromDto: points.landingZoneFromDto as never,
+    createFromDto: entities.createLandingZoneFromDto,
+    applyUpdate: entities.applyLandingZoneUpdate,
+    toDto: entities.landingZoneToDto,
+    fromDto: entities.landingZoneFromDto
   }),
-  define({
+  [ENTITY_TYPES.ELIAHU]: define({
     entityType: ENTITY_TYPES.ELIAHU,
     createSchema: CreateEliahuDtoSchema,
     updateSchema: UpdateEliahuDtoSchema,
     dtoSchema: EliahuDtoSchema,
-    fromCreateDto: points.eliahuFromCreateDto as never,
-    applyUpdate: points.applyEliahuUpdate as never,
-    toDto: points.eliahuToDto as never,
-    fromDto: points.eliahuFromDto as never,
+    createFromDto: entities.createEliahuFromDto,
+    applyUpdate: entities.applyEliahuUpdate,
+    toDto: entities.eliahuToDto,
+    fromDto: entities.eliahuFromDto
   }),
-  define({
+  [ENTITY_TYPES.ISLAND]: define({
     entityType: ENTITY_TYPES.ISLAND,
     createSchema: CreateIslandDtoSchema,
     updateSchema: UpdateIslandDtoSchema,
     dtoSchema: IslandDtoSchema,
-    fromCreateDto: points.islandFromCreateDto as never,
-    applyUpdate: points.applyIslandUpdate as never,
-    toDto: points.islandToDto as never,
-    fromDto: points.islandFromDto as never,
+    createFromDto: entities.createIslandFromDto,
+    applyUpdate: entities.applyIslandUpdate,
+    toDto: entities.islandToDto,
+    fromDto: entities.islandFromDto
   }),
-  define({
+  [ENTITY_TYPES.LAMINE]: define({
     entityType: ENTITY_TYPES.LAMINE,
     createSchema: CreateLamineDtoSchema,
     updateSchema: UpdateLamineDtoSchema,
     dtoSchema: LamineDtoSchema,
-    fromCreateDto: points.lamineFromCreateDto as never,
-    applyUpdate: points.applyLamineUpdate as never,
-    toDto: points.lamineToDto as never,
-    fromDto: points.lamineFromDto as never,
+    createFromDto: entities.createLamineFromDto,
+    applyUpdate: entities.applyLamineUpdate,
+    toDto: entities.lamineToDto,
+    fromDto: entities.lamineFromDto
   }),
-  define({
+  [ENTITY_TYPES.MESSI]: define({
     entityType: ENTITY_TYPES.MESSI,
     createSchema: CreateMessiDtoSchema,
     updateSchema: UpdateMessiDtoSchema,
     dtoSchema: MessiDtoSchema,
-    fromCreateDto: points.messiFromCreateDto as never,
-    applyUpdate: points.applyMessiUpdate as never,
-    toDto: points.messiToDto as never,
-    fromDto: points.messiFromDto as never,
-  }),
-];
+    createFromDto: entities.createMessiFromDto,
+    applyUpdate: entities.applyMessiUpdate,
+    toDto: entities.messiToDto,
+    fromDto: entities.messiFromDto
+  })
+} satisfies Record<Exclude<EntityType, typeof ENTITY_TYPES.ROUTE>, EntityDefinition>;
 
-const definitionsByType = new Map(ENTITY_DEFINITIONS.map((definition) => [definition.entityType, definition]));
+export type EntityDefinitions = typeof ENTITY_DEFINITIONS;
+export type EntityDefinitionType = keyof EntityDefinitions;
 
-export const getEntityDefinition = (entityType: EntityType): EntityDefinition => {
-  const definition = definitionsByType.get(entityType);
-  if (!definition) {
+export function getEntityDefinition<K extends EntityDefinitionType>(
+  entityType: K
+): EntityDefinitions[K];
+export function getEntityDefinition(entityType: EntityType): EntityDefinition;
+export function getEntityDefinition(entityType: EntityType): EntityDefinition {
+  if (entityType === ENTITY_TYPES.ROUTE) {
     throw new Error(`No entity definition registered for type ${entityType}`);
   }
-  return definition;
-};
+  return ENTITY_DEFINITIONS[entityType];
+}
 
-export const entityToDto = (entity: AnyEntity): unknown => {
+export const entityToDto = (entity: Entity): unknown => {
   if (entity.entityType === ENTITY_TYPES.ROUTE) {
     throw new Error('Route entities are mapped through route.mapper');
   }
-  return getEntityDefinition(entity.entityType).toDto(entity);
+  const definition: EntityDefinition = getEntityDefinition(entity.entityType);
+  return definition.toDto(entity);
 };

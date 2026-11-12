@@ -29,7 +29,7 @@ export const SonicMissionPropertiesSchema = z
 export type SonicMissionProperties = z.infer<typeof SonicMissionPropertiesSchema>;
 
 export const MissionBaseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   timeInfo: TimeInfoSchema,
   name: z.string().min(1),
   comment: z.string().optional(),

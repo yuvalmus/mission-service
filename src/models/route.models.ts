@@ -8,11 +8,12 @@ import {
 } from 'constants/entity.constants';
 import { GeoCoordinateSchema } from 'models/geo.models';
 import {
-  KnownColorSchema,
+  EntityColorSchema,
   LineStyleSchema,
   RemoteEntitySchema,
   createEntityBaseSchema
-} from 'models/entity.models';
+} from 'models/common.entity.models';
+import { Wpt } from './entities.models';
 
 export const LegHighPointSchema = z.object({
   nz: GeoCoordinateSchema,
@@ -34,8 +35,8 @@ export const RouteLegOffsetsSchema = z.object({
 export type RouteLegOffsets = z.infer<typeof RouteLegOffsetsSchema>;
 
 export const RouteLegSchema = z.object({
-  startWpt: z.string().uuid(),
-  endWpt: z.string().uuid(),
+  startWpt: z.uuid(),
+  endWpt: z.uuid(),
   distanceNm: z.number().nonnegative(),
   angle: z.number(),
   legTimeMs: z.number().nonnegative(),
@@ -54,16 +55,21 @@ export const RouteSchema = createEntityBaseSchema(ENTITY_TYPES.ROUTE)
   .merge(RemoteEntitySchema)
   .extend({
     category: z.enum(ROUTE_CATEGORIES),
-    color: KnownColorSchema,
+    color: EntityColorSchema,
     lineStyle: LineStyleSchema,
     remoteName: z.string().max(ROUTE_LIMITS.REMOTE_NAME_MAX_LENGTH).optional(),
-    wptsIds: z.array(z.string().uuid()),
+    wptsIds: z.array(z.uuid()),
     legs: z.array(RouteLegSchema),
     defaultTas: z.number().int(),
     isActive: z.boolean().default(false),
-    routeSource: z.enum(ROUTE_PROVIDERS).default('hair'),
-    viewMode: z.enum(ROUTE_VIEW_MODES).default('regular'),
-    zmmWptId: z.string().uuid().optional()
+    routeSource: z.enum(ROUTE_PROVIDERS).default(ROUTE_PROVIDERS.HAIR),
+    viewMode: z.enum(ROUTE_VIEW_MODES).default(ROUTE_VIEW_MODES.REGULAR),
+    zmmWptId: z.uuid().optional()
   });
 
 export type Route = z.infer<typeof RouteSchema>;
+
+export interface FullRoute {
+  route: Route;
+  routeWpts: Wpt[];
+}

@@ -3,6 +3,8 @@ import { createMissionController, MissionController } from 'controllers/mission.
 import { MissionService } from 'services/mission.service';
 import { MergeMissionDto, MissionIdParams, SearchNameParams } from 'dtos/mission.dtos';
 import { HTTP_STATUS } from 'constants/http.constants';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { MISSION_LAYERS } from 'constants/entity.constants';
 import { BadRequestError } from 'errors/app.errors';
 import { createHttpContext } from '../fixtures/express.fixtures';
 import {
@@ -13,7 +15,7 @@ import {
   buildMission,
   buildMissionBase,
   buildUpdateMissionDto,
-  createMissionServiceMock,
+  createMissionServiceMock
 } from '../fixtures/mission.fixtures';
 import { buildCircle } from '../fixtures/entity.fixtures';
 
@@ -23,32 +25,44 @@ describe('mission.controller', () => {
 
   describe('getMission', () => {
     it('returns 200 with the mission dto including grouped entities', async () => {
-      missionService.findMissionWithEntities.mockResolvedValue({
-        mission: buildMission(),
-        entities: [buildCircle()],
+      missionService.findMission.mockResolvedValue(buildMission());
+      missionService.findMissionEntities.mockResolvedValue([buildCircle()]);
+      const { req, res } = createHttpContext<Request<MissionIdParams>>({
+        params: { id: MISSION_ID }
       });
-      const { req, res } = createHttpContext<Request<MissionIdParams>>({ params: { id: MISSION_ID } });
 
       await controller.getMission(req, res);
 
-      expect(missionService.findMissionWithEntities).toHaveBeenCalledWith(MISSION_ID);
+      expect(missionService.findMission).toHaveBeenCalledWith(MISSION_ID);
+      expect(missionService.findMissionEntities).toHaveBeenCalledWith(MISSION_ID);
       expect(res.statusCode).toBe(HTTP_STATUS.OK);
-      expect(res._getJSONData()).toMatchObject({ id: MISSION_ID, name: MISSION_NAME, versionNumber: 1 });
+      expect(res._getJSONData()).toMatchObject({
+        id: MISSION_ID,
+        name: MISSION_NAME,
+        versionNumber: 1
+      });
       expect(res._getJSONData().entities.circles).toHaveLength(1);
     });
 
-    it('returns 404 when the mission does not exist', async () => {
-      missionService.findMissionWithEntities.mockResolvedValue(null);
-      const { req, res } = createHttpContext<Request<MissionIdParams>>({ params: { id: MISSION_ID } });
+    it('rejects with a NotFoundError when the mission does not exist', async () => {
+      missionService.findMission.mockResolvedValue(null);
+      const { req, res } = createHttpContext<Request<MissionIdParams>>({
+        params: { id: MISSION_ID }
+      });
 
-      await controller.getMission(req, res);
-
-      expect(res.statusCode).toBe(HTTP_STATUS.NOT_FOUND);
+      await expect(controller.getMission(req, res)).rejects.toMatchObject({
+        name: 'NotFoundError',
+        message: ERROR_MESSAGES.MISSION_NOT_FOUND,
+        statusCode: HTTP_STATUS.NOT_FOUND
+      });
+      expect(missionService.findMissionEntities).not.toHaveBeenCalled();
     });
 
     it('propagates service errors to the async error pipeline', async () => {
-      missionService.findMissionWithEntities.mockRejectedValue(new Error('boom'));
-      const { req, res } = createHttpContext<Request<MissionIdParams>>({ params: { id: MISSION_ID } });
+      missionService.findMission.mockRejectedValue(new Error('boom'));
+      const { req, res } = createHttpContext<Request<MissionIdParams>>({
+        params: { id: MISSION_ID }
+      });
 
       await expect(controller.getMission(req, res)).rejects.toThrow('boom');
     });
@@ -59,7 +73,7 @@ describe('mission.controller', () => {
       missionService.retrieveAll.mockResolvedValue([buildMissionBase()]);
       const { req, res } = createHttpContext();
 
-      await controller.getAllBasic(req, res);
+      await controller.getAllBasicMissions(req, res);
 
       expect(res.statusCode).toBe(HTTP_STATUS.OK);
       expect(res._getJSONData()).toHaveLength(1);
@@ -69,7 +83,9 @@ describe('mission.controller', () => {
 
   describe('getMissionsFromIds', () => {
     it('returns 200 with full mission dtos for the requested ids', async () => {
-      missionService.retrieveAllInList.mockResolvedValue([{ mission: buildMission(), entities: [] }]);
+      missionService.retrieveAllInList.mockResolvedValue([
+        { mission: buildMission(), entities: [] }
+      ]);
       const { req, res } = createHttpContext({ body: [MISSION_ID, OTHER_MISSION_ID] });
 
       await controller.getMissionsFromIds(req, res);
@@ -80,18 +96,37 @@ describe('mission.controller', () => {
     });
   });
 
+  describe('getBasicMissionsFromIds', () => {
+    it('returns 200 with basic mission dtos for the requested ids', async () => {
+      missionService.retrieveAllInList.mockResolvedValue([
+        { mission: buildMission(), entities: [buildCircle()] }
+      ]);
+      const { req, res } = createHttpContext({ body: [MISSION_ID] });
+
+      await controller.getBasicMissionsFromIds(req, res);
+
+      expect(missionService.retrieveAllInList).toHaveBeenCalledWith([MISSION_ID]);
+      expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res._getJSONData()).toHaveLength(1);
+      expect(res._getJSONData()[0]).not.toHaveProperty('versionNumber');
+      expect(res._getJSONData()[0]).not.toHaveProperty('entities');
+    });
+  });
+
   describe('createMission', () => {
-    it('returns 200 with the created mission dto', async () => {
+    it('returns 201 with the created mission dto', async () => {
+      missionService.generateNextMissionName.mockResolvedValue(MISSION_NAME);
       missionService.createMission.mockResolvedValue(buildMission());
       const { req, res } = createHttpContext({ body: buildCreateMissionDto() });
 
       await controller.createMission(req, res);
 
-      expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res.statusCode).toBe(HTTP_STATUS.CREATED);
       expect(res._getJSONData()).toMatchObject({ name: MISSION_NAME });
     });
 
     it('rejects when the service throws a domain error', async () => {
+      missionService.generateNextMissionName.mockResolvedValue(MISSION_NAME);
       missionService.createMission.mockRejectedValue(new BadRequestError('duplicate'));
       const { req, res } = createHttpContext({ body: buildCreateMissionDto() });
 
@@ -102,7 +137,7 @@ describe('mission.controller', () => {
   describe('updateMission', () => {
     it('returns 200 with the updated mission dto including entities', async () => {
       missionService.updateMission.mockResolvedValue(buildMission({ versionNumber: 2 }));
-      missionService.findMissionWithEntities.mockResolvedValue({ mission: buildMission(), entities: [] });
+      missionService.findMissionEntities.mockResolvedValue([]);
       const { req, res } = createHttpContext({ body: buildUpdateMissionDto() });
 
       await controller.updateMission(req, res);
@@ -113,35 +148,50 @@ describe('mission.controller', () => {
   });
 
   describe('deleteMission', () => {
-    it('returns 200 when the mission was deleted', async () => {
+    it('returns 204 when the mission was deleted', async () => {
       missionService.deleteMission.mockResolvedValue(true);
-      const { req, res } = createHttpContext<Request<MissionIdParams>>({ params: { id: MISSION_ID } });
+      const { req, res } = createHttpContext<Request<MissionIdParams>>({
+        params: { id: MISSION_ID }
+      });
 
       await controller.deleteMission(req, res);
 
-      expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res.statusCode).toBe(HTTP_STATUS.NO_CONTENT);
     });
 
-    it('returns 404 when nothing was deleted', async () => {
+    it('rejects with a NotFoundError when nothing was deleted', async () => {
       missionService.deleteMission.mockResolvedValue(false);
-      const { req, res } = createHttpContext<Request<MissionIdParams>>({ params: { id: MISSION_ID } });
+      const { req, res } = createHttpContext<Request<MissionIdParams>>({
+        params: { id: MISSION_ID }
+      });
 
-      await controller.deleteMission(req, res);
-
-      expect(res.statusCode).toBe(HTTP_STATUS.NOT_FOUND);
+      await expect(controller.deleteMission(req, res)).rejects.toMatchObject({
+        name: 'NotFoundError',
+        message: ERROR_MESSAGES.MISSION_NOT_FOUND,
+        statusCode: HTTP_STATUS.NOT_FOUND
+      });
     });
   });
 
   describe('cloneMission', () => {
-    it('returns 200 with the cloned mission dto', async () => {
+    it('returns 201 with the cloned mission dto', async () => {
       const cloned = buildMission({ id: OTHER_MISSION_ID, name: `${MISSION_NAME}(1)` });
-      missionService.cloneMission.mockResolvedValue({ mission: cloned, entities: [] });
-      const { req, res } = createHttpContext<Request<MissionIdParams>>({ params: { id: MISSION_ID } });
+      missionService.cloneMission.mockResolvedValue(cloned);
+      missionService.findMissionEntities.mockResolvedValue([buildCircle()]);
+      const { req, res } = createHttpContext<Request<MissionIdParams>>({
+        params: { id: MISSION_ID }
+      });
 
       await controller.cloneMission(req, res);
 
       expect(missionService.cloneMission).toHaveBeenCalledWith(MISSION_ID);
-      expect(res._getJSONData()).toMatchObject({ id: OTHER_MISSION_ID, name: `${MISSION_NAME}(1)` });
+      expect(missionService.findMissionEntities).toHaveBeenCalledWith(OTHER_MISSION_ID);
+      expect(res._getJSONData().entities.circles).toHaveLength(1);
+      expect(res.statusCode).toBe(HTTP_STATUS.CREATED);
+      expect(res._getJSONData()).toMatchObject({
+        id: OTHER_MISSION_ID,
+        name: `${MISSION_NAME}(1)`
+      });
     });
   });
 
@@ -149,40 +199,48 @@ describe('mission.controller', () => {
     const mergeBody: MergeMissionDto = {
       currentId: MISSION_ID,
       mergedId: OTHER_MISSION_ID,
-      missionLayers: ['Navigation', 'not-a-layer'],
+      missionLayers: ['Navigation', 'not-a-layer']
     };
 
     it('parses layers (unknown layers default to Navigation) and returns the merged mission', async () => {
-      missionService.mergeMission.mockResolvedValue({ mission: buildMission(), entities: [] });
+      missionService.mergeMission.mockResolvedValue(buildMission());
+      missionService.findMissionEntities.mockResolvedValue([buildCircle()]);
       const { req, res } = createHttpContext({ body: mergeBody });
 
       await controller.mergeMission(req, res);
 
       expect(missionService.mergeMission).toHaveBeenCalledWith(MISSION_ID, OTHER_MISSION_ID, [
-        'Navigation',
-        'Navigation',
+        MISSION_LAYERS.NAVIGATION,
+        MISSION_LAYERS.NAVIGATION
       ]);
+      expect(missionService.findMissionEntities).toHaveBeenCalledWith(MISSION_ID);
       expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res._getJSONData().entities.circles).toHaveLength(1);
     });
 
-    it('returns 404 when the current mission does not exist', async () => {
+    it('rejects with a NotFoundError when the current mission does not exist', async () => {
       missionService.mergeMission.mockResolvedValue(null);
       const { req, res } = createHttpContext({ body: mergeBody });
 
-      await controller.mergeMission(req, res);
-
-      expect(res.statusCode).toBe(HTTP_STATUS.NOT_FOUND);
+      await expect(controller.mergeMission(req, res)).rejects.toMatchObject({
+        name: 'NotFoundError',
+        message: ERROR_MESSAGES.MISSION_NOT_FOUND,
+        statusCode: HTTP_STATUS.NOT_FOUND
+      });
+      expect(missionService.findMissionEntities).not.toHaveBeenCalled();
     });
   });
 
-  describe('importMissions', () => {
-    it('returns 200 with the imported missions', async () => {
-      missionService.importMissions.mockResolvedValue([{ mission: buildMission(), entities: [] }]);
+  describe('createMissionList', () => {
+    it('returns 201 with the imported missions', async () => {
+      missionService.createMissionList.mockResolvedValue([
+        { mission: buildMission(), entities: [] }
+      ]);
       const { req, res } = createHttpContext({ body: [] });
 
-      await controller.importMissions(req, res);
+      await controller.createMissionList(req, res);
 
-      expect(res.statusCode).toBe(HTTP_STATUS.OK);
+      expect(res.statusCode).toBe(HTTP_STATUS.CREATED);
       expect(res._getJSONData()).toHaveLength(1);
     });
   });
@@ -190,7 +248,9 @@ describe('mission.controller', () => {
   describe('searchByName', () => {
     it('returns 200 with matching missions', async () => {
       missionService.searchMissionsByName.mockResolvedValue([buildMissionBase()]);
-      const { req, res } = createHttpContext<Request<SearchNameParams>>({ params: { name: 'Alpha' } });
+      const { req, res } = createHttpContext<Request<SearchNameParams>>({
+        params: { name: 'Alpha' }
+      });
 
       await controller.searchByName(req, res);
 

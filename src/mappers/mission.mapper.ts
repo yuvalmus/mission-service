@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { ENTITY_TYPES } from 'constants/entity.constants';
 import { Mission, MissionBase, MISSION_CONSTANTS } from 'models/mission.models';
-import { AnyEntity } from 'models/entity-union.models';
-import { TimeInfo, createTimeInfo } from 'models/time.models';
+import { Entity } from 'models/entity.union.models';
+import { createTimeInfo } from 'models/time.models';
 import {
   BasicMissionDto,
   CreateMissionDto,
@@ -10,16 +10,14 @@ import {
   MissionEntitiesDto,
   UpdateMissionDto
 } from 'dtos/mission.dtos';
-import { getEntityDefinition } from 'mappers/entity.registry';
+import {
+  EntityDefinitions,
+  EntityDefinitionType,
+  getEntityDefinition
+} from 'mappers/entity.registry';
 import { routeFromDto, routeToDto } from 'mappers/route.mapper';
-import { fromTimeInfoDto } from 'mappers/entity.mapper';
+import { fromTimeInfoDto, toTimeInfoDto } from 'mappers/common.entity.mapper';
 import { Route } from 'models/route.models';
-
-const toTimeInfoDto = (timeInfo: TimeInfo): BasicMissionDto['timeInfo'] =>
-  timeInfo && {
-    dateCreated: timeInfo.dateCreated.toISOString(),
-    lastUpdateTime: timeInfo.lastUpdateTime.toISOString()
-  };
 
 export const toBasicMissionDto = (mission: MissionBase): BasicMissionDto => ({
   id: mission.id,
@@ -32,7 +30,7 @@ export const toBasicMissionDto = (mission: MissionBase): BasicMissionDto => ({
   attachedMissionId: mission.attachedMissionId
 });
 
-export const toMissionEntitiesDto = (entities: readonly AnyEntity[]): MissionEntitiesDto => {
+export const toMissionEntitiesDto = (entities: readonly Entity[]): MissionEntitiesDto => {
   const dto: MissionEntitiesDto = {
     sectors: [],
     circles: [],
@@ -52,40 +50,40 @@ export const toMissionEntitiesDto = (entities: readonly AnyEntity[]): MissionEnt
   entities.forEach(entity => {
     switch (entity.entityType) {
       case ENTITY_TYPES.SECTOR:
-        dto.sectors.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.sectors.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.CIRCLE:
-        dto.circles.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.circles.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.POLYGON:
-        dto.polygons.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.polygons.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.CORRIDOR:
-        dto.corridors.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.corridors.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.POLYLINE:
-        dto.polylines.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.polylines.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.NAVIGATION_WAY_POINT:
-        dto.wpts.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.wpts.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.LANDING_ZONE:
-        dto.landingZones.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.landingZones.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ELIAHU:
-        dto.eliahus.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.eliahus.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ISLAND:
-        dto.universeIslands.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.universeIslands.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.LAMINE:
-        dto.lamines.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.lamines.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.SYMBOL_POINT:
-        dto.symbolPoints.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.symbolPoints.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.MESSI:
-        dto.messis.push(getEntityDefinition(entity.entityType).toDto(entity) as never);
+        dto.messis.push(getEntityDefinition(entity.entityType).toDto(entity));
         break;
       case ENTITY_TYPES.ROUTE:
         dto.routes.push(routeToDto(entity));
@@ -96,10 +94,7 @@ export const toMissionEntitiesDto = (entities: readonly AnyEntity[]): MissionEnt
   return dto;
 };
 
-export const toMissionDto = (
-  mission: Mission,
-  entities: readonly AnyEntity[] = []
-): MissionDto => ({
+export const toMissionDto = (mission: Mission, entities: readonly Entity[] = []): MissionDto => ({
   ...toBasicMissionDto(mission),
   entities: toMissionEntitiesDto(entities),
   corruptedEntities: [],
@@ -122,27 +117,28 @@ export const createDtoToMission = (dto: CreateMissionDto): Mission => ({
 
 export interface MissionWithEntities {
   mission: Mission;
-  entities: AnyEntity[];
+  entities: Entity[];
 }
 
-export const missionFromDto = (dto: MissionDto): MissionWithEntities => {
-  const mission: Mission = {
-    id: dto.id,
-    timeInfo: fromTimeInfoDto(dto.timeInfo),
-    name: dto.name,
-    comment: dto.comment,
-    createdBy: dto.createdBy,
-    missionType: dto.missionType,
-    password: dto.password,
-    attachedMissionId: dto.attachedMissionId,
-    versionNumber: dto.versionNumber,
-    sonicProperties: dto.sonicProperties
-  };
+export const missionFromDto = (dto: MissionDto): Mission => ({
+  id: dto.id,
+  timeInfo: fromTimeInfoDto(dto.timeInfo),
+  name: dto.name,
+  comment: dto.comment,
+  createdBy: dto.createdBy,
+  missionType: dto.missionType,
+  password: dto.password,
+  attachedMissionId: dto.attachedMissionId,
+  versionNumber: dto.versionNumber,
+  sonicProperties: dto.sonicProperties
+});
 
-  const fromDtoOf = (entityType: (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]) =>
-    getEntityDefinition(entityType).fromDto;
+export const missionEntitiesFromDto = (dto: MissionDto): Entity[] => {
+  const fromDtoOf = <K extends EntityDefinitionType>(
+    entityType: K
+  ): EntityDefinitions[K]['fromDto'] => getEntityDefinition(entityType).fromDto;
 
-  const entities: AnyEntity[] = [
+  return [
     ...dto.entities.circles.map(entity => fromDtoOf(ENTITY_TYPES.CIRCLE)(entity, dto.id)),
     ...dto.entities.sectors.map(entity => fromDtoOf(ENTITY_TYPES.SECTOR)(entity, dto.id)),
     ...dto.entities.polygons.map(entity => fromDtoOf(ENTITY_TYPES.POLYGON)(entity, dto.id)),
@@ -165,30 +161,30 @@ export const missionFromDto = (dto: MissionDto): MissionWithEntities => {
     ),
     ...dto.entities.routes.map((entity): Route => routeFromDto(entity, dto.id))
   ];
-
-  return { mission, entities };
 };
 
 export const applyUpdateDto = (
-  mission: Mission,
-  dto: UpdateMissionDto,
+  currentMission: Mission,
+  incomingMissionInfo: UpdateMissionDto,
   now: Date = new Date()
 ): Mission => ({
-  ...mission,
-  name: dto.name,
-  comment: dto.comment,
-  createdBy: dto.createdBy,
-  missionType: dto.missionType,
-  password: dto.password ?? undefined,
-  attachedMissionId: dto.attachedMissionId ?? undefined,
-  timeInfo: mission.timeInfo ? { ...mission.timeInfo, lastUpdateTime: now } : createTimeInfo(now),
-  versionNumber: mission.versionNumber + 1
+  ...currentMission,
+  name: incomingMissionInfo.name,
+  comment: incomingMissionInfo.comment,
+  createdBy: incomingMissionInfo.createdBy,
+  missionType: incomingMissionInfo.missionType,
+  password: incomingMissionInfo.password ?? undefined,
+  attachedMissionId: incomingMissionInfo.attachedMissionId ?? undefined,
+  timeInfo: currentMission.timeInfo
+    ? { ...currentMission.timeInfo, lastUpdateTime: now }
+    : createTimeInfo(now),
+  versionNumber: currentMission.versionNumber + 1
 });
 
 export const isMissionUnchanged = (mission: Mission, dto: UpdateMissionDto): boolean =>
   mission.name === dto.name &&
-  mission.comment === (dto.comment ?? null) &&
-  mission.createdBy === (dto.createdBy ?? null) &&
-  mission.missionType === (dto.missionType ?? null) &&
-  mission.password === (dto.password ?? null) &&
-  mission.attachedMissionId === (dto.attachedMissionId ?? null);
+  mission.comment === (dto.comment ?? undefined) &&
+  mission.createdBy === (dto.createdBy ?? undefined) &&
+  mission.missionType === (dto.missionType ?? undefined) &&
+  mission.password === (dto.password ?? undefined) &&
+  mission.attachedMissionId === (dto.attachedMissionId ?? undefined);

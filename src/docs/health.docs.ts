@@ -16,6 +16,7 @@ const HealthReportSchema = z
 registry.registerPath({
   method: 'get',
   path: ROUTES.HEALTHZ,
+  operationId: 'healthCheck',
   tags: [TAGS.HEALTH],
   summary: 'Liveness probe',
   responses: {
@@ -29,6 +30,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: ROUTES.READYZ,
+  operationId: 'readyCheck',
   tags: [TAGS.HEALTH],
   summary: 'Readiness probe (verifies database connectivity)',
   responses: {

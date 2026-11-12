@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Mission, MissionBase, MISSION_CONSTANTS } from 'models/mission.models';
-import { AnyEntity } from 'models/entity-union.models';
+import { Entity } from 'models/entity.union.models';
 import { Route } from 'models/route.models';
 import { CreateMissionDto, MissionDto, UpdateMissionDto } from 'dtos/mission.dtos';
-import { MissionRepository } from 'repositories/mission.repository';
-import { EntityRepository } from 'repositories/entity.repository';
-import { UnitOfWork } from 'database/database.types';
+import { MissionRepository } from 'repositories/mission.repository.interface';
+import { EntityRepository } from 'repositories/entity.repository.interface';
+import { TransactionContext, UnitOfWork } from 'database/database.types';
 import { BadRequestError, NotFoundError } from 'errors/app.errors';
 import { ERROR_MESSAGES } from 'constants/error.constants';
 import { NAME_GENERATION } from 'constants/app.constants';
@@ -13,31 +13,36 @@ import {
   ENTITY_NAME_PREFIXES,
   ENTITY_TYPES,
   MISSION_LAYER_ENTITY_CATEGORIES,
-  MissionLayer,
+  MissionLayer
 } from 'constants/entity.constants';
 import {
   MissionWithEntities,
   applyUpdateDto,
   createDtoToMission,
   isMissionUnchanged,
-  missionFromDto,
+  missionEntitiesFromDto,
+  missionFromDto
 } from 'mappers/mission.mapper';
-import { cloneEntityToMission } from 'mappers/entity.mapper';
-import { generateNames, parenthesesFormatter, plainFormatter } from 'utils/name-generator.util';
-import { CommonActionsService } from 'services/common-actions.service';
+import { cloneEntityToMission } from 'mappers/common.entity.mapper';
+import { generateNames, parenthesesFormatter, plainFormatter } from 'utils/name.generator.util';
+import { CommonActionsService } from 'services/common.actions.service';
 import { RouteService } from 'services/route.service';
 import { AppLogger } from 'utils/logger.util';
 
 export interface MissionService {
-  createMission(dto: CreateMissionDto): Promise<Mission>;
+  createMission(incomingMission: CreateMissionDto): Promise<Mission>;
   findMission(id: string): Promise<Mission | null>;
-  findMissionWithEntities(id: string): Promise<MissionWithEntities | null>;
-  updateMission(dto: UpdateMissionDto): Promise<Mission>;
+  findMissionEntities(id: string): Promise<Entity[]>;
+  updateMission(incomingMission: UpdateMissionDto): Promise<Mission>;
   deleteMission(id: string): Promise<boolean>;
-  cloneMission(id: string): Promise<MissionWithEntities>;
-  mergeMission(currentId: string, mergedId: string, layers: MissionLayer[]): Promise<MissionWithEntities | null>;
-  importMissions(missionDtos: MissionDto[]): Promise<MissionWithEntities[]>;
-  addEntities(entities: AnyEntity[], parentId: string): Promise<void>;
+  cloneMission(id: string): Promise<Mission>;
+  mergeMission(
+    currentId: string,
+    mergedId: string,
+    layers: MissionLayer[]
+  ): Promise<Mission | null>;
+  createMissionList(missionDtos: MissionDto[]): Promise<MissionWithEntities[]>;
+  addEntities(entities: Entity[], parentId: string, context?: TransactionContext): Promise<void>;
   retrieveAll(): Promise<MissionBase[]>;
   retrieveAllInList(ids: readonly string[]): Promise<MissionWithEntities[]>;
   searchMissionsByName(name: string): Promise<MissionBase[]>;
@@ -54,11 +59,11 @@ export interface MissionServiceDeps {
   logger: AppLogger;
 }
 
-const entityMatchesLayer = (entity: AnyEntity, layer: MissionLayer): boolean =>
+const entityMatchesLayer = (entity: Entity, layer: MissionLayer): boolean =>
   MISSION_LAYER_ENTITY_CATEGORIES[layer]?.[entity.entityType]?.includes(entity.category) ?? false;
 
-const entityMatchesAnyLayer = (entity: AnyEntity, layers: readonly MissionLayer[]): boolean =>
-  layers.some((layer) => entityMatchesLayer(entity, layer));
+const entityMatchesAnyLayer = (entity: Entity, layers: readonly MissionLayer[]): boolean =>
+  layers.some(layer => entityMatchesLayer(entity, layer));
 
 export const createMissionService = ({
   missionRepository,
@@ -66,7 +71,7 @@ export const createMissionService = ({
   routeService,
   commonActions,
   unitOfWork,
-  logger,
+  logger
 }: MissionServiceDeps): MissionService => {
   const validateMissionName = async (missionId: string, name: string): Promise<void> => {
     if (!name.trim()) {
@@ -87,204 +92,279 @@ export const createMissionService = ({
     return name as string;
   };
 
-  const findMissionWithEntities = async (id: string): Promise<MissionWithEntities | null> => {
-    const mission = await missionRepository.findById(id);
-    if (!mission) {
-      logger.warn({ missionId: id }, 'Mission was not found');
-      return null;
-    }
+  const findMissionEntities = async (id: string): Promise<Entity[]> => {
     const entities = await entityRepository.findByParentId(id);
-    return { mission, entities };
+    if (entities.length === 0) {
+      logger.warn({ missionId: id }, 'Mission has no entities');
+    }
+    return entities;
   };
 
-  const addEntities = async (entities: AnyEntity[], parentId: string): Promise<void> => {
-    const routes = entities.filter((entity): entity is Route => entity.entityType === ENTITY_TYPES.ROUTE);
-    const nonRoutes = entities.filter((entity) => entity.entityType !== ENTITY_TYPES.ROUTE);
+  const addEntities = async (
+    entities: Entity[],
+    parentId: string,
+    transactionContext?: TransactionContext
+  ): Promise<void> => {
+    const routes = entities.filter(
+      (entity): entity is Route => entity.entityType === ENTITY_TYPES.ROUTE
+    );
+    const nonRoutes = entities.filter(entity => entity.entityType !== ENTITY_TYPES.ROUTE);
 
     await Promise.all(
-      nonRoutes.map(async (entity) => {
-        await entityRepository.insert({ ...entity, parentId });
-        await commonActions.bumpParentVersion(parentId);
-      }),
+      nonRoutes.map(async entity => {
+        await entityRepository.insert({ ...entity, parentId }, transactionContext);
+        await commonActions.bumpParentVersion(parentId, transactionContext);
+      })
     );
 
     for (const route of routes) {
       const routeDto = await routeService.cloneRoute({ ...route, parentId });
-      await routeService.addRoute(routeDto, parentId);
+      await routeService.addRoute(routeDto, parentId, transactionContext);
     }
   };
+  const getSplitMission = async (incomingMissions: MissionDto[]) => {
+    const uniqueIds = new Set(incomingMissions.map(missionDto => missionDto.id));
+    const uniqueNames = new Set(incomingMissions.map(missionDto => missionDto.name));
+    if (
+      uniqueIds.size !== incomingMissions.length ||
+      uniqueNames.size !== incomingMissions.length
+    ) {
+      throw new BadRequestError(ERROR_MESSAGES.DUPLICATE_MISSIONS_IN_LIST);
+    }
 
-  const cloneMissionEntities = async (sourceEntities: AnyEntity[], targetMissionId: string): Promise<void> => {
-    const clonedEntities = sourceEntities.map((entity) => cloneEntityToMission(entity, targetMissionId));
-    await addEntities(clonedEntities, targetMissionId);
+    const existingNames = await missionRepository.findAllNames();
+    const splitMission: MissionWithEntities[] = [];
+
+    for (const fullMission of incomingMissions) {
+      const missionInfo = missionFromDto(fullMission);
+      const entities = missionEntitiesFromDto(fullMission);
+      const name = existingNames.includes(fullMission.name)
+        ? await generateNextMissionName(fullMission.name)
+        : missionInfo.name;
+      splitMission.push({ mission: { ...missionInfo, name }, entities });
+    }
+    return splitMission;
+  };
+  const cloneMissionEntities = async (
+    sourceEntities: Entity[],
+    targetMissionId: string,
+    transactionContext?: TransactionContext
+  ): Promise<void> => {
+    const clonedEntities = sourceEntities.map(entity =>
+      cloneEntityToMission(entity, targetMissionId)
+    );
+    await addEntities(clonedEntities, targetMissionId, transactionContext);
     logger.info({ missionId: targetMissionId }, 'Cloned mission entities successfully');
   };
 
-  return {
-    createMission: async (dto) => {
-      const mission = createDtoToMission(dto);
-      await validateMissionName(mission.id, mission.name);
-      await missionRepository.create(mission);
-      logger.info({ missionId: mission.id }, 'Mission created');
+  const createMission = async (incomingMission: CreateMissionDto): Promise<Mission> => {
+    const mission = createDtoToMission(incomingMission);
+    await validateMissionName(mission.id, mission.name);
+    await missionRepository.create(mission);
+    logger.info({ missionId: mission.id }, 'Mission created');
+    return mission;
+  };
+
+  const findMission = async (id: string): Promise<Mission | null> => {
+    const mission = await missionRepository.findById(id);
+    if (!mission) {
+      logger.warn({ missionId: id }, 'Mission was not found');
+    }
+    return mission;
+  };
+
+  const updateMission = async (incomingMission: UpdateMissionDto): Promise<Mission> => {
+    const mission = await missionRepository.findById(incomingMission.id);
+    if (!mission) {
+      throw new BadRequestError(ERROR_MESSAGES.MISSION_NOT_FOUND);
+    }
+    await validateMissionName(incomingMission.id, incomingMission.name);
+
+    if (isMissionUnchanged(mission, incomingMission)) {
+      logger.info({ missionId: mission.id }, 'Mission update skipped, nothing changed');
       return mission;
-    },
+    }
 
-    findMission: (id) => missionRepository.findById(id),
+    const updated = await missionRepository.update(applyUpdateDto(mission, incomingMission));
+    logger.info({ missionId: mission.id }, 'Mission updated');
+    return updated;
+  };
 
-    findMissionWithEntities,
-
-    updateMission: async (dto) => {
-      const mission = await missionRepository.findById(dto.id);
+  const deleteMission = (id: string): Promise<boolean> =>
+    unitOfWork.run(async transactionContext => {
+      const mission = await missionRepository.findById(id);
       if (!mission) {
         throw new BadRequestError(ERROR_MESSAGES.MISSION_NOT_FOUND);
       }
-      await validateMissionName(dto.id, dto.name);
+      const entitiesDeleted = await entityRepository.deleteByParentId(id, transactionContext);
+      const missionDeleted = await missionRepository.delete(id, transactionContext);
+      logger.info({ missionId: id }, 'Mission deleted');
+      return missionDeleted && entitiesDeleted;
+    });
 
-      if (isMissionUnchanged(mission, dto)) {
-        return mission;
-      }
+  const cloneMission = async (id: string): Promise<Mission> => {
+    logger.info({ missionId: id }, 'Attempting to clone a mission');
+    const sourceMission = await findMission(id);
+    if (!sourceMission) {
+      throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
+    }
+    const sourceEntities = await findMissionEntities(id);
 
-      return missionRepository.update(applyUpdateDto(mission, dto));
-    },
+    const cloned: Mission = {
+      ...sourceMission,
+      id: randomUUID(),
+      name: await generateNextMissionName(sourceMission.name),
+      versionNumber: MISSION_CONSTANTS.BASE_VERSION_NUMBER
+    };
+    await missionRepository.create(cloned);
+    await cloneMissionEntities(sourceEntities, cloned.id);
+    logger.info({ sourceMissionId: id, clonedMissionId: cloned.id }, 'Mission cloned');
 
-    deleteMission: (id) =>
-      unitOfWork.run(async (context) => {
-        const mission = await missionRepository.findById(id);
-        if (!mission) {
-          throw new BadRequestError(ERROR_MESSAGES.MISSION_NOT_FOUND);
-        }
-        const entitiesDeleted = await entityRepository.deleteByParentId(id, context);
-        const missionDeleted = await missionRepository.delete(id, context);
-        logger.info({ missionId: id }, 'Mission deleted');
-        return missionDeleted && entitiesDeleted;
-      }),
+    return (await findMission(cloned.id)) as Mission;
+  };
 
-    cloneMission: async (id) => {
-      const source = await findMissionWithEntities(id);
-      if (!source) {
-        throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
-      }
+  const mergeMission = async (
+    currentId: string,
+    mergedId: string,
+    layers: MissionLayer[]
+  ): Promise<Mission | null> => {
+    logger.info({ currentId, mergedId, layers }, 'Attempting to merge missions');
+    const targetMission = await findMission(currentId);
+    const sourceMission = await findMission(mergedId);
 
-      const cloned: Mission = {
-        ...source.mission,
-        id: randomUUID(),
-        name: await generateNextMissionName(source.mission.name),
-        versionNumber: MISSION_CONSTANTS.BASE_VERSION_NUMBER,
-      };
-      await missionRepository.create(cloned);
-      await cloneMissionEntities(source.entities, cloned.id);
-      return (await findMissionWithEntities(cloned.id)) as MissionWithEntities;
-    },
+    if (targetMission && sourceMission) {
+      const targetEntities = await findMissionEntities(currentId);
+      const sourceEntities = await findMissionEntities(mergedId);
 
-    mergeMission: async (currentId, mergedId, layers) => {
-      const current = await findMissionWithEntities(currentId);
-      const merged = await findMissionWithEntities(mergedId);
+      const entitiesToDelete = targetEntities.filter(entity =>
+        entityMatchesAnyLayer(entity, layers)
+      );
 
-      if (current && merged) {
-        const entitiesToDelete = current.entities.filter((entity) => entityMatchesAnyLayer(entity, layers));
+      const remainingNames = targetEntities.map(entity => entity.name);
+      entitiesToDelete.forEach(entity => {
+        const nameIndex = remainingNames.indexOf(entity.name);
+        if (nameIndex >= 0) remainingNames.splice(nameIndex, 1);
+      });
 
-        const remainingNames = current.entities.map((entity) => entity.name);
-        entitiesToDelete.forEach((entity) => {
-          const nameIndex = remainingNames.indexOf(entity.name);
-          if (nameIndex >= 0) remainingNames.splice(nameIndex, 1);
+      const entitiesToAdd: Entity[] = [];
+      sourceEntities
+        .filter(entity => entityMatchesAnyLayer(entity, layers))
+        .forEach(entity => {
+          const name = remainingNames.includes(entity.name)
+            ? (generateNames(
+                remainingNames,
+                ENTITY_NAME_PREFIXES[entity.entityType],
+                1
+              )[0] as string)
+            : entity.name;
+          entitiesToAdd.push(cloneEntityToMission({ ...entity, name }, currentId));
+          remainingNames.push(name);
         });
 
-        const entitiesToAdd: AnyEntity[] = [];
-        merged.entities
-          .filter((entity) => entityMatchesAnyLayer(entity, layers))
-          .forEach((entity) => {
-            const name = remainingNames.includes(entity.name)
-              ? (generateNames(remainingNames, ENTITY_NAME_PREFIXES[entity.entityType], 1)[0] as string)
-              : entity.name;
-            entitiesToAdd.push(cloneEntityToMission({ ...entity, name }, currentId));
-            remainingNames.push(name);
-          });
-
-        await Promise.all(
-          entitiesToDelete.map(async (entity) => {
-            await entityRepository.deleteById(entity.id);
-            await commonActions.bumpParentVersion(currentId);
-          }),
-        );
-        await addEntities(entitiesToAdd, currentId);
-      }
-
-      return findMissionWithEntities(currentId);
-    },
-
-    importMissions: async (missionDtos) => {
-      const uniqueIds = new Set(missionDtos.map((dto) => dto.id));
-      const uniqueNames = new Set(missionDtos.map((dto) => dto.name));
-      if (uniqueIds.size !== missionDtos.length || uniqueNames.size !== missionDtos.length) {
-        throw new BadRequestError(ERROR_MESSAGES.DUPLICATE_MISSIONS_IN_LIST);
-      }
-
-      const existingNames = await missionRepository.findAllNames();
-      const imported: MissionWithEntities[] = [];
-
-      for (const dto of missionDtos) {
-        const { mission, entities } = missionFromDto(dto);
-        const name = existingNames.includes(dto.name)
-          ? await generateNextMissionName(dto.name)
-          : mission.name;
-        imported.push({ mission: { ...mission, name }, entities });
-      }
-
-      for (const { mission, entities } of imported) {
-        const cloned: Mission = { ...mission, id: randomUUID() };
-        await missionRepository.create(cloned);
-
-        const originalWpts = entities.filter((entity) => entity.entityType === ENTITY_TYPES.NAVIGATION_WAY_POINT);
-        await Promise.all(
-          originalWpts.map(async (wpt) => {
-            await entityRepository.insert({ ...wpt, parentId: cloned.id });
-            await commonActions.bumpParentVersion(cloned.id);
-          }),
-        );
-
-        await cloneMissionEntities(
-          entities.map((entity) => ({ ...entity, parentId: cloned.id })),
-          cloned.id,
-        );
-
-        await Promise.all(
-          originalWpts.map(async (wpt) => {
-            await entityRepository.deleteById(wpt.id);
-            await commonActions.bumpParentVersion(cloned.id);
-          }),
-        );
-      }
-
-      return imported;
-    },
-
-    addEntities,
-
-    retrieveAll: () => missionRepository.findAllBasic(),
-
-    retrieveAllInList: async (ids) => {
-      const missions = await missionRepository.findByIds(ids);
-      return Promise.all(
-        missions.map(async (mission) => ({
-          mission,
-          entities: await entityRepository.findByParentId(mission.id),
-        })),
+      await Promise.all(
+        entitiesToDelete.map(async entity => {
+          await entityRepository.deleteById(entity.id);
+          await commonActions.bumpParentVersion(currentId);
+        })
       );
-    },
+      await addEntities(entitiesToAdd, currentId);
+      logger.info(
+        { currentId, mergedId, deleted: entitiesToDelete.length, added: entitiesToAdd.length },
+        'Missions merged'
+      );
+    }
 
-    searchMissionsByName: (name) => missionRepository.searchByName(name),
+    return findMission(currentId);
+  };
 
-    generateNextEntityNames: async (missionId, amount, prefix) => {
-      const mission = await missionRepository.findById(missionId);
-      if (!mission) {
-        throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
-      }
-      const names = await entityRepository.findNamesByParentId(missionId);
-      const result = generateNames(names, prefix, amount);
-      logger.info({ amount, missionId }, 'Successfully generated next entity names');
-      return result;
-    },
+  const createMissionList = async (
+    incomingMissions: MissionDto[]
+  ): Promise<MissionWithEntities[]> => {
+    logger.info({ count: incomingMissions.length }, 'Attempting to create a mission list');
+    const splitMission = await getSplitMission(incomingMissions);
 
-    generateNextMissionName,
+    for (const { mission, entities } of splitMission) {
+      const cloned: Mission = { ...mission, id: randomUUID() };
+      await missionRepository.create(cloned);
+
+      const originalWpts = entities.filter(
+        entity => entity.entityType === ENTITY_TYPES.NAVIGATION_WAY_POINT
+      );
+      await Promise.all(
+        originalWpts.map(async wpt => {
+          await entityRepository.insert({ ...wpt, parentId: cloned.id });
+          await commonActions.bumpParentVersion(cloned.id);
+        })
+      );
+
+      await cloneMissionEntities(
+        entities.map(entity => ({ ...entity, parentId: cloned.id })),
+        cloned.id
+      );
+
+      await Promise.all(
+        originalWpts.map(async wpt => {
+          await entityRepository.deleteById(wpt.id);
+          await commonActions.bumpParentVersion(cloned.id);
+        })
+      );
+    }
+
+    logger.info({ count: splitMission.length }, 'Mission list created');
+    return splitMission;
+  };
+
+  const retrieveAll =(): Promise<MissionBase[]> => missionRepository.findAllBasic();
+
+  const retrieveAllInList = async (
+    ids: readonly string[]
+  ): Promise<MissionWithEntities[]> => {
+    const missions = await missionRepository.findByIds(ids);
+    const foundIds = new Set(missions.map(mission => mission.id));
+    const missingIds = ids.filter(id => !foundIds.has(id));
+    if (missingIds.length > 0) {
+      logger.warn({ missingIds }, 'Some of the requested missions were not found');
+    }
+    return Promise.all(
+      missions.map(async mission => ({
+        mission,
+        entities: await entityRepository.findByParentId(mission.id)
+      }))
+    );
+  };
+
+  const searchMissionsByName = (name: string): Promise<MissionBase[]> =>
+    missionRepository.searchByName(name);
+
+  const generateNextEntityNames = async (
+    missionId: string,
+    amount: number,
+    prefix: string
+  ): Promise<string[]> => {
+    const mission = await missionRepository.findById(missionId);
+    if (!mission) {
+      throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
+    }
+    const names = await entityRepository.findNamesByParentId(missionId);
+    const result = generateNames(names, prefix, amount);
+    logger.info({ amount, missionId }, 'Successfully generated next entity names');
+    return result;
+  };
+
+  return {
+    createMission,
+    findMission,
+    findMissionEntities,
+    updateMission,
+    deleteMission,
+    cloneMission,
+    mergeMission,
+    createMissionList,
+    addEntities,
+    retrieveAll,
+    retrieveAllInList,
+    searchMissionsByName,
+    generateNextEntityNames,
+    generateNextMissionName
   };
 };

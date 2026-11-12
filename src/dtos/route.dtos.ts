@@ -6,10 +6,14 @@ import {
   ROUTE_PROVIDERS,
   ROUTE_VIEW_MODES
 } from 'constants/entity.constants';
-import { KnownColorSchema } from 'models/entity.models';
-import { AltitudeSchema, GeneralEntityInfoSchema, GeoCoordinateDtoSchema } from 'dtos/entity.dtos';
-import { CreateRouteWptDtoSchema } from 'dtos/points.dtos';
-import { entityNameSchema } from 'dtos/shapes.dtos';
+import { EntityColorSchema } from 'models/common.entity.models';
+import {
+  AltitudeSchema,
+  GeneralEntityInfoSchema,
+  GeoCoordinateDtoSchema
+} from 'dtos/commonEntity.dtos';
+import { CreateRouteWptDtoSchema } from 'dtos/entities.dtos';
+import { entityNameSchema } from 'dtos/entities.dtos';
 
 export const LegHighPointDtoSchema = z
   .object({
@@ -34,14 +38,14 @@ export const RouteLegOffsetsDtoSchema = z
 
 export const RouteLegDtoSchema = z
   .object({
-    startWpt: z.string().uuid(),
-    endWpt: z.string().uuid(),
+    startWpt: z.uuid(),
+    endWpt: z.uuid(),
     distanceNm: z.number().nonnegative(),
     angle: z.number(),
     legTimeMs: z.number().nonnegative(),
     isManualLegTime: z.boolean(),
     tas: z.number().int(),
-    zmmTime: z.string().datetime({ offset: true }).optional(),
+    zmmTime: z.string().optional(),
     highestPoint: LegHighPointDtoSchema,
     safetyAltitude: z.number(),
     legOffsets: RouteLegOffsetsDtoSchema,
@@ -53,8 +57,8 @@ export type RouteLegDto = z.infer<typeof RouteLegDtoSchema>;
 
 export const CreateOrUpdateRouteDtoSchema = z
   .object({
-    id: z.string().uuid(),
-    parentId: z.string().uuid(),
+    id: z.uuid(),
+    parentId: z.uuid(),
     name: entityNameSchema(),
     remark: z.string(),
     isActive: z.boolean(),
@@ -62,7 +66,7 @@ export const CreateOrUpdateRouteDtoSchema = z
     category: z.enum(ROUTE_CATEGORIES),
     routeSource: z.enum(ROUTE_PROVIDERS),
     viewMode: z.enum(ROUTE_VIEW_MODES),
-    color: KnownColorSchema,
+    color: EntityColorSchema,
     lineStyle: z.enum(LINE_STYLES),
     legs: z.array(RouteLegDtoSchema),
     isVisible: z.boolean(),
@@ -70,7 +74,7 @@ export const CreateOrUpdateRouteDtoSchema = z
     defaultTas: z.number().int(),
     remoteId: z.number().optional(),
     remoteName: z.string().optional(),
-    zmmWptId: z.string().uuid().optional()
+    zmmWptId: z.uuid().optional()
   })
   .openapi('CreateOrUpdateRouteDto');
 
@@ -85,12 +89,12 @@ export const RouteDtoSchema = z
     lineStyle: z.string(),
     color: z.string(),
     category: z.string(),
-    wptsIds: z.array(z.string().uuid()),
+    wptsIds: z.array(z.uuid()),
     legs: z.array(RouteLegDtoSchema),
     defaultTas: z.number().int(),
     remoteId: z.number().optional(),
     remoteName: z.string().optional(),
-    zmmWptId: z.string().uuid().optional()
+    zmmWptId: z.uuid().optional()
   })
   .openapi('RouteDto');
 
@@ -115,7 +119,7 @@ export type RetrieveRouteDto = z.infer<typeof RetrieveRouteDtoSchema>;
 
 export const RouteNavLegDtoSchema = z
   .object({
-    endWpt: z.string().uuid(),
+    endWpt: z.uuid(),
     endWptPosition: GeoCoordinateDtoSchema.optional(),
     distanceNm: z.number(),
     angle: z.number(),

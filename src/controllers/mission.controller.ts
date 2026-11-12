@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { MissionService } from 'services/mission.service';
 import { toBasicMissionDto, toMissionDto } from 'mappers/mission.mapper';
 import { HTTP_STATUS } from 'constants/http.constants';
+import { ERROR_MESSAGES } from 'constants/error.constants';
+import { NotFoundError } from 'errors/app.errors';
 import { MISSION_LAYERS, MissionLayer } from 'constants/entity.constants';
 import {
   MergeMissionDto,
@@ -14,7 +16,7 @@ import {
 
 export interface MissionController {
   getMission(req: Request<MissionIdParams>, res: Response): Promise<void>;
-  getAllBasic(req: Request, res: Response): Promise<void>;
+  getAllBasicMissions(req: Request, res: Response): Promise<void>;
   getMissionsFromIds(
     req: Request<unknown, unknown, MissionIdListDto>,
     res: Response
@@ -28,7 +30,7 @@ export interface MissionController {
   deleteMission(req: Request<MissionIdParams>, res: Response): Promise<void>;
   cloneMission(req: Request<MissionIdParams>, res: Response): Promise<void>;
   mergeMission(req: Request<unknown, unknown, MergeMissionDto>, res: Response): Promise<void>;
-  importMissions(req: Request<unknown, unknown, MissionDtoList>, res: Response): Promise<void>;
+  createMissionList(req: Request<unknown, unknown, MissionDtoList>, res: Response): Promise<void>;
   searchByName(req: Request<SearchNameParams>, res: Response): Promise<void>;
 }
 
@@ -39,31 +41,29 @@ const parseMissionLayer = (layer: string): MissionLayer =>
 
 export const createMissionController = (missionService: MissionService): MissionController => ({
   getMission: async (req, res) => {
-    const result = await missionService.findMissionWithEntities(req.params.id);
-    if (!result) {
-      res.status(HTTP_STATUS.NOT_FOUND).send();
-      return;
+    const mission = await missionService.findMission(req.params.id);
+    if (!mission) {
+      throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
     }
-    res.status(HTTP_STATUS.OK).json(toMissionDto(result.mission, result.entities));
+    const entities = await missionService.findMissionEntities(mission.id);
+    res.status(HTTP_STATUS.OK).json(toMissionDto(mission, entities));
   },
 
-  getAllBasic: async (_req, res) => {
+  getAllBasicMissions: async (_req, res) => {
     const missions = await missionService.retrieveAll();
     res.status(HTTP_STATUS.OK).json(missions.map(toBasicMissionDto));
   },
 
   getMissionsFromIds: async (req, res) => {
-    const results = await missionService.retrieveAllInList(req.body);
+    const missions = await missionService.retrieveAllInList(req.body);
     res
       .status(HTTP_STATUS.OK)
-      .json(results.map(({ mission, entities }) => toMissionDto(mission, entities)));
+      .json(missions.map(({ mission, entities }) => toMissionDto(mission, entities)));
   },
 
   getBasicMissionsFromIds: async (req, res) => {
-    const results = await missionService.retrieveAllInList(req.body);
-    res
-      .status(HTTP_STATUS.OK)
-      .json(results.map(({ mission, entities }) => toMissionDto(mission, entities)));
+    const missions = await missionService.retrieveAllInList(req.body);
+    res.status(HTTP_STATUS.OK).json(missions.map(({ mission }) => toBasicMissionDto(mission)));
   },
 
   createMission: async (req, res) => {
@@ -77,39 +77,43 @@ export const createMissionController = (missionService: MissionService): Mission
       sonicProperties: undefined
     };
     const mission = await missionService.createMission(emptyMission);
-    res.status(HTTP_STATUS.OK).json(toMissionDto(mission));
+    res.status(HTTP_STATUS.CREATED).json(toMissionDto(mission));
   },
 
   updateMission: async (req, res) => {
-    const mission = await missionService.updateMission(req.body);
-    const populated = await missionService.findMissionWithEntities(mission.id);
-    res.status(HTTP_STATUS.OK).json(toMissionDto(mission, populated?.entities ?? []));
+    const missionInfo = await missionService.updateMission(req.body);
+    const entities = await missionService.findMissionEntities(missionInfo.id);
+    res.status(HTTP_STATUS.OK).json(toMissionDto(missionInfo, entities));
   },
 
   deleteMission: async (req, res) => {
     const deleted = await missionService.deleteMission(req.params.id);
-    res.status(deleted ? HTTP_STATUS.OK : HTTP_STATUS.NOT_FOUND).send();
+    if (!deleted) {
+      throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
+    }
+    res.status(HTTP_STATUS.NO_CONTENT).send();
   },
 
   cloneMission: async (req, res) => {
-    const { mission, entities } = await missionService.cloneMission(req.params.id);
-    res.status(HTTP_STATUS.OK).json(toMissionDto(mission, entities));
+    const mission = await missionService.cloneMission(req.params.id);
+    const entities = await missionService.findMissionEntities(mission.id);
+    res.status(HTTP_STATUS.CREATED).json(toMissionDto(mission, entities));
   },
 
   mergeMission: async (req, res) => {
     const layers = req.body.missionLayers.map(parseMissionLayer);
-    const result = await missionService.mergeMission(req.body.currentId, req.body.mergedId, layers);
-    if (!result) {
-      res.status(HTTP_STATUS.NOT_FOUND).send();
-      return;
+    const mission = await missionService.mergeMission(req.body.currentId, req.body.mergedId, layers);
+    if (!mission) {
+      throw new NotFoundError(ERROR_MESSAGES.MISSION_NOT_FOUND);
     }
-    res.status(HTTP_STATUS.OK).json(toMissionDto(result.mission, result.entities));
+    const entities = await missionService.findMissionEntities(mission.id);
+    res.status(HTTP_STATUS.OK).json(toMissionDto(mission, entities));
   },
 
-  importMissions: async (req, res) => {
-    const imported = await missionService.importMissions(req.body);
+  createMissionList: async (req, res) => {
+    const imported = await missionService.createMissionList(req.body);
     res
-      .status(HTTP_STATUS.OK)
+      .status(HTTP_STATUS.CREATED)
       .json(imported.map(({ mission, entities }) => toMissionDto(mission, entities)));
   },
 

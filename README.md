@@ -44,10 +44,10 @@ docs follow automatically.
 | `NODE_ENV` | `development` | `development` \| `test` \| `production` |
 | `SERVICE_NAME` | `mission-service` | Used in logs and health output |
 | `STATION` | `Air` | `Ground` → MongoDB, anything else → Redis |
-| `MONGO_URI` | `mongodb://localhost:27017` | Used when `STATION=Ground` |
+| `MONGO_URL` | `mongodb://localhost:27017` | Used when `STATION=Ground` |
 | `MONGO_DB_NAME` | `Mission` | |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Used when `STATION≠Ground` |
-| `LOG_LEVEL` | `info` | pino level |
+| `LOG_LEVEL` | `info` | `fatal` \| `error` \| `warn` \| `info` \| `debug` |
 
 Env vars are validated by Zod on boot — a bad value fails fast with a clear message.
 
