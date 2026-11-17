@@ -5,15 +5,12 @@ export const PG_TABLES = {
   INFRA: 'infra',
   ENTITIES: 'entities',
   ROUTE_BACKUPS: 'route_backups',
+  CHANGE_COUNTERS: 'change_counters',
 } as const;
 
 export const PG_VIEWS = {
   ACTIVE_ENTITIES: 'v_active_entities',
   MAP_RENDER_LAYER: 'v_map_render_layer',
-} as const;
-
-export const PG_SEQUENCES = {
-  ENTITY_CHANGE: 'entity_change_seq',
 } as const;
 
 /** pg_notify channels the Bridge sidecar subscribes to. */
@@ -156,6 +153,4 @@ export const ENTITY_COLUMN_KEYS = ['id', 'parentId', 'entityType'] as const;
 export const MESH_DEFAULTS = {
   NODE_NAME: 'node-a',
   PEER_NODE_NAME: 'node-b',
-  NODE_INDEX: 1,
-  NODE_COUNT: 2,
 } as const;

@@ -13,6 +13,7 @@ export interface CollectionReport {
   entities: number;
   missions: number;
   infra: number;
+  counters: number;
   backups: number;
 }
 
@@ -47,6 +48,12 @@ const PURGE_INFRA = `
     AND deleted_at < NOW() - ($1 || ' minutes')::interval
 `;
 
+const PURGE_COUNTERS = `
+  DELETE FROM ${PG_TABLES.CHANGE_COUNTERS} c
+  WHERE NOT EXISTS (SELECT 1 FROM ${PG_TABLES.MISSIONS} m WHERE m.id = c.parent_id)
+    AND NOT EXISTS (SELECT 1 FROM ${PG_TABLES.INFRA} i WHERE i.id = c.parent_id)
+`;
+
 /**
  * Enforcing the ten-version ceiling out here, rather than inside the backup trigger, is deliberate:
  * a DELETE in the trigger would add I/O and lock time to every single entity update.
@@ -74,12 +81,14 @@ export const createTombstoneCollector = ({ pool, env, logger }: TombstoneCollect
       const entities = await client.query(PURGE_ENTITIES, [retention]);
       const missions = await client.query(PURGE_MISSIONS, [retention]);
       const infra = await client.query(PURGE_INFRA, [retention]);
+      const counters = await client.query(PURGE_COUNTERS);
       const backups = await client.query(PRUNE_BACKUPS, [env.ROUTE_BACKUP_LIMIT]);
 
       return {
         entities: entities.rowCount ?? 0,
         missions: missions.rowCount ?? 0,
         infra: infra.rowCount ?? 0,
+        counters: counters.rowCount ?? 0,
         backups: backups.rowCount ?? 0,
       };
     } finally {
@@ -90,7 +99,7 @@ export const createTombstoneCollector = ({ pool, env, logger }: TombstoneCollect
   const runCycle = async (): Promise<void> => {
     try {
       const report = await collectOnce();
-      const reclaimed = report.entities + report.missions + report.infra + report.backups;
+      const reclaimed = report.entities + report.missions + report.infra + report.counters + report.backups;
       if (reclaimed > 0) {
         logger.info(report, 'Reclaimed tombstoned rows');
       }

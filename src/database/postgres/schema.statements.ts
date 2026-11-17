@@ -10,7 +10,6 @@ import {
   PG_CHANNELS,
   PG_EXTENSIONS,
   PG_FUNCTIONS,
-  PG_SEQUENCES,
   PG_TABLES,
   PG_TRIGGERS,
   PG_VIEWS,
@@ -49,18 +48,6 @@ export const buildSchemaStatements = (env: Env): string[] => {
   return [
     `CREATE EXTENSION IF NOT EXISTS ${PG_EXTENSIONS.PGCRYPTO};`,
     `CREATE EXTENSION IF NOT EXISTS ${PG_EXTENSIONS.POSTGIS};`,
-
-    // --- Change sequence -------------------------------------------------------------------
-    // Native global sequence rather than a per-mission counter: nextval() takes no row lock, so
-    // concurrent writes to one mission cannot deadlock. Gaps within a mission are expected and
-    // harmless — delta sync only ever asks for "greater than what I last saw".
-    // INCREMENT BY node-count interleaves the stations (A: 1,3,5... B: 2,4,6...) so two peers
-    // writing while disconnected can never hand the same sequence to different entities.
-    `CREATE SEQUENCE IF NOT EXISTS ${PG_SEQUENCES.ENTITY_CHANGE}
-       START WITH ${env.MESH_NODE_INDEX}
-       INCREMENT BY ${env.MESH_NODE_COUNT}
-       MINVALUE ${env.MESH_NODE_INDEX};`,
-    `ALTER SEQUENCE ${PG_SEQUENCES.ENTITY_CHANGE} INCREMENT BY ${env.MESH_NODE_COUNT};`,
 
     // --- Tables ----------------------------------------------------------------------------
     `CREATE TABLE IF NOT EXISTS ${PG_TABLES.MISSIONS} (
@@ -118,6 +105,11 @@ export const buildSchemaStatements = (env: Env): string[] => {
         )
      );`,
 
+    `CREATE TABLE IF NOT EXISTS ${PG_TABLES.CHANGE_COUNTERS} (
+        parent_id UUID PRIMARY KEY,
+        last_seq BIGINT NOT NULL
+     );`,
+
     // Ten versions back per entity, written by the BEFORE UPDATE trigger. Pruning is deliberately
     // NOT done here — it runs in the background collector so it cannot lengthen a write.
     `CREATE TABLE IF NOT EXISTS ${PG_TABLES.ROUTE_BACKUPS} (
@@ -136,8 +128,8 @@ export const buildSchemaStatements = (env: Env): string[] => {
 
     // --- Indexes ---------------------------------------------------------------------------
     `CREATE INDEX IF NOT EXISTS idx_spatial_entities ON ${PG_TABLES.ENTITIES} USING GIST (${ENTITY_COLUMNS.GEOM});`,
-    `CREATE INDEX IF NOT EXISTS idx_entities_mission_seq ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.MISSION_ID}, ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ});`,
-    `CREATE INDEX IF NOT EXISTS idx_entities_infra_seq ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.INFRA_ID}, ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ});`,
+    `CREATE INDEX IF NOT EXISTS idx_entities_mission_origin_seq ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.MISSION_ID}, ${ENTITY_COLUMNS.ORIGIN_NODE}, ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ});`,
+    `CREATE INDEX IF NOT EXISTS idx_entities_infra_origin_seq ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.INFRA_ID}, ${ENTITY_COLUMNS.ORIGIN_NODE}, ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ});`,
     `CREATE INDEX IF NOT EXISTS idx_entities_mission_name ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.MISSION_ID}, ${ENTITY_COLUMNS.NAME});`,
     `CREATE INDEX IF NOT EXISTS idx_entities_infra_name ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.INFRA_ID}, ${ENTITY_COLUMNS.NAME});`,
     `CREATE INDEX IF NOT EXISTS idx_entities_type ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.ENTITY_TYPE});`,
@@ -162,6 +154,8 @@ export const buildSchemaStatements = (env: Env): string[] => {
     // Origin-only (plain ENABLE): a row arriving through pglogical keeps the version and sequence
     // its author gave it, so both stations agree on the identity of a change.
     `CREATE OR REPLACE FUNCTION ${PG_FUNCTIONS.ASSIGN_ENTITY_CHANGE_METADATA}() RETURNS trigger AS $$
+     DECLARE
+       v_seq BIGINT;
      BEGIN
        IF TG_OP = 'UPDATE' THEN
          NEW.${ENTITY_COLUMNS.VERSION} := COALESCE(OLD.${ENTITY_COLUMNS.VERSION}, 0) + 1;
@@ -169,7 +163,13 @@ export const buildSchemaStatements = (env: Env): string[] => {
          NEW.${ENTITY_COLUMNS.VERSION} := COALESCE(NEW.${ENTITY_COLUMNS.VERSION}, 1);
        END IF;
 
-       NEW.${ENTITY_COLUMNS.MISSION_CHANGE_SEQ} := nextval('${PG_SEQUENCES.ENTITY_CHANGE}');
+       IF COALESCE(NEW.${ENTITY_COLUMNS.MISSION_ID}, NEW.${ENTITY_COLUMNS.INFRA_ID}) IS NOT NULL THEN
+         INSERT INTO ${PG_TABLES.CHANGE_COUNTERS} (parent_id, last_seq)
+         VALUES (COALESCE(NEW.${ENTITY_COLUMNS.MISSION_ID}, NEW.${ENTITY_COLUMNS.INFRA_ID}), 1)
+         ON CONFLICT (parent_id) DO UPDATE SET last_seq = ${PG_TABLES.CHANGE_COUNTERS}.last_seq + 1
+         RETURNING last_seq INTO v_seq;
+         NEW.${ENTITY_COLUMNS.MISSION_CHANGE_SEQ} := v_seq;
+       END IF;
        NEW.${ENTITY_COLUMNS.LAST_UPDATE_TIME} := NOW();
 
        -- Derived from the payload so the indexed columns cannot drift from properties.

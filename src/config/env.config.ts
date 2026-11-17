@@ -55,15 +55,6 @@ const EnvSchema = z.object({
   PEER_POSTGRES_HOST: z.string().min(1).optional(),
   PEER_POSTGRES_PORT: z.coerce.number().int().positive().default(ENV_DEFAULTS.PEER_POSTGRES_PORT),
 
-  /**
-   * Change-sequence interleaving. Each station draws `mission_change_seq` from its own local
-   * sequence, so the sequences must not overlap: station i emits i, i+N, i+2N, ... Without this
-   * two stations would hand the same sequence number to different entities and a reconnecting
-   * client could skip one. Same reasoning as the UUID-only primary key rule.
-   */
-  MESH_NODE_INDEX: z.coerce.number().int().positive().default(MESH_DEFAULTS.NODE_INDEX),
-  MESH_NODE_COUNT: z.coerce.number().int().positive().default(MESH_DEFAULTS.NODE_COUNT),
-
   NATS_URL: z.string().min(1).default(ENV_DEFAULTS.NATS_URL),
 
   TOMBSTONE_RETENTION_MINUTES: z.coerce
@@ -75,16 +66,9 @@ const EnvSchema = z.object({
   ROUTE_BACKUP_LIMIT: z.coerce.number().int().positive().default(ENV_DEFAULTS.ROUTE_BACKUP_LIMIT),
 });
 
-const MESH_INDEX_MESSAGE = 'MESH_NODE_INDEX must be between 1 and MESH_NODE_COUNT';
-
-const CheckedEnvSchema = EnvSchema.refine(
-  ({ MESH_NODE_INDEX, MESH_NODE_COUNT }) => MESH_NODE_INDEX <= MESH_NODE_COUNT,
-  { message: MESH_INDEX_MESSAGE, path: ['MESH_NODE_INDEX'] },
-);
-
 export type Env = z.infer<typeof EnvSchema>;
 
 export const loadEnv = (): Env => {
   loadDotenv();
-  return CheckedEnvSchema.parse(process.env);
+  return EnvSchema.parse(process.env);
 };
