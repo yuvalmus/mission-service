@@ -287,6 +287,11 @@ docker network disconnect mesh-net station-b-postgres && docker network disconne
 docker network connect mesh-net station-b-postgres && docker network connect mesh-net station-b-nats
 ```
 
+A cut link is noticed within about 15–25 seconds: every peer connection carries connect, keepalive
+and TCP timeouts, and `wal_sender_timeout` is 15 s. Without them a silently dropped link could stall
+replication for up to ~15 minutes after it came back. Measured on Docker, a 10 s or 60 s cut caught
+up 5–15 s after reconnect.
+
 Each station's JetStream `domain` in `deploy/nats/` must equal its `NODE_NAME` — each peer's mirror
 addresses it as `$JS.<NODE_NAME>.API`.
 

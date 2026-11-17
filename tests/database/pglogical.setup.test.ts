@@ -104,6 +104,18 @@ describe('createPglogicalMesh', () => {
     expect(subscriptionNames()).toContain('sub_node_a_to_station_b');
   });
 
+  it('gives every peer link timeouts so a cut link is noticed in seconds', async () => {
+    await mesh(twoPeers).connect();
+
+    const dsns = callsTo('pglogical.create_subscription').map((values) => String(values[1]));
+    expect(dsns).toHaveLength(2);
+    dsns.forEach((dsn) =>
+      expect(dsn).toContain(
+        'connect_timeout=10 keepalives=1 keepalives_idle=10 keepalives_interval=5 keepalives_count=3 tcp_user_timeout=15000',
+      ),
+    );
+  });
+
   it('runs as a single station with no peers', async () => {
     await mesh([]).connect();
 

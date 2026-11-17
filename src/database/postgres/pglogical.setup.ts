@@ -31,8 +31,11 @@ const SUBSCRIPTION_STATUS = {
 /** pglogical node names are SQL identifiers, so a hostname-style name has to be normalised. */
 const toIdentifier = (value: string): string => value.replace(/-/g, '_');
 
+const LINK_TIMEOUTS =
+  'connect_timeout=10 keepalives=1 keepalives_idle=10 keepalives_interval=5 keepalives_count=3 tcp_user_timeout=15000';
+
 const buildDsn = (host: string, port: number, env: Env): string =>
-  `host=${host} port=${port} dbname=${env.POSTGRES_DB} user=${env.POSTGRES_USER} password=${env.POSTGRES_PASSWORD}`;
+  `host=${host} port=${port} dbname=${env.POSTGRES_DB} user=${env.POSTGRES_USER} password=${env.POSTGRES_PASSWORD} ${LINK_TIMEOUTS}`;
 
 const isAlreadyExists = (error: unknown): boolean =>
   error instanceof Error && /already|duplicate/i.test(error.message);
