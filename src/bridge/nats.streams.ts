@@ -87,7 +87,7 @@ export const setupStreams = async (nc: NatsConnection, env: Env, logger: AppLogg
  * The number of the last change this station published for one parent. The Bridge keeps no cursor
  * of its own — the only durable state it needs already lives in the stream, which is what lets the
  * process be replaced or restarted without losing its place. A subject with no message yet (first
- * start, or aged out of the stream) counts as 0.
+ * start, or aged out of the stream) counts as 0, and so does a message that is not JSON.
  */
 export const readLastPublishedSeq = async (nc: NatsConnection, subject: string): Promise<number> => {
   try {
@@ -96,6 +96,7 @@ export const readLastPublishedSeq = async (nc: NatsConnection, subject: string):
     const payload = JSON.parse(new TextDecoder().decode(message.data)) as { lastChangeSeq?: number };
     return typeof payload.lastChangeSeq === 'number' ? payload.lastChangeSeq : 0;
   } catch (error) {
+    if (error instanceof SyntaxError) return 0;
     if (error instanceof Error && error.message.includes(NO_MESSAGE_FOUND)) return 0;
     throw error;
   }

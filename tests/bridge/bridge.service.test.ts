@@ -312,6 +312,14 @@ describe('bridge.service', () => {
       expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(3);
     });
 
+    it('listens before reading the counters, so a write during the refill still raises an event', async () => {
+      await startBridge();
+
+      const firstListen = (ctx.pgClient.query as jest.Mock).mock.invocationCallOrder[0] ?? Infinity;
+      const firstCounterRead = ctx.repository.getLocalCounters.mock.invocationCallOrder[0] ?? -Infinity;
+      expect(firstListen).toBeLessThan(firstCounterRead);
+    });
+
     it('still starts listening when the first refill fails', async () => {
       ctx.repository.getLocalCounters.mockRejectedValueOnce(new Error('nats down'));
 

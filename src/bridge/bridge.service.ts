@@ -222,11 +222,11 @@ export const createBridgeService = ({
 
   return {
     start: async () => {
-      await runRefill();
-
       pgClient.on('notification', onNotification);
       await pgClient.query(`LISTEN ${PG_CHANNELS.ENTITY_CHANGES}`);
       await pgClient.query(`LISTEN ${PG_CHANNELS.MISSION_CHANGES}`);
+
+      await runRefill();
 
       logger.info(
         { node: env.NODE_NAME, channels: Object.values(PG_CHANNELS) },

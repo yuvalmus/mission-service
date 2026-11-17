@@ -59,6 +59,12 @@ describe('nats.streams', () => {
     expect(await readLastPublishedSeq(nc, SUBJECT)).toBe(0);
   });
 
+  it('treats a last message that is not JSON as 0 instead of stopping the refill', async () => {
+    jsm.streams.getMessage.mockResolvedValue({ data: new TextEncoder().encode('not json') });
+
+    expect(await readLastPublishedSeq(nc, SUBJECT)).toBe(0);
+  });
+
   it('passes any other failure up', async () => {
     jsm.streams.getMessage.mockRejectedValue(new Error('timeout'));
 
