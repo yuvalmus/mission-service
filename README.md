@@ -353,6 +353,14 @@ A residual edge remains in the initial copy: if a joining station edits a row th
 in the seconds before the survivor's back-subscription is established, that copy collides. The
 window is one retry interval (15 seconds) after a station first joins.
 
+**Known limit with three stations: an edit that arrives before its create is dropped.** Each
+station sends only the rows it wrote last, and a station applies each peer's stream on its own. If
+station C is away while B creates an entity and A then edits it, C may receive A's edit before B's
+create when it returns. pglogical cannot apply an update to a row that does not exist yet, so it
+skips the edit, and C then shows B's original version until someone edits the entity again. Nothing
+is lost: A's version is in C's history (`GET /sync/entities/:entityId/history`), and A and B hold it.
+With two stations this cannot happen, because the editor always received the row from the creator.
+
 ## API overview
 
 | Base path                 | Purpose                                                                        |

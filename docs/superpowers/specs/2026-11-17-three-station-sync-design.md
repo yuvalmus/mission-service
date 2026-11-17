@@ -222,6 +222,10 @@ The existing deviation 3 (global sequence) is withdrawn.
 - Mission lifecycle events lost while NATS is down are not refilled. The mission list is small, and
   clients re-list it on reconnect.
 - Clock skew decides LWW. The docs accept this for 12-hour sessions.
+- An edit that reaches a station before its create is dropped. C is away; B creates an entity and A
+  edits it; on return C may apply A's update first, which pglogical skips because the row is missing,
+  then B's insert. C shows B's version until the next edit. A's version is in C's history. Found in
+  the final review; the user chose on 2026-11-17 to document it rather than repair it.
 
 ## 8. Verification
 
