@@ -11,6 +11,8 @@ import { AppLogger } from 'utils/logger.util';
 
 const STREAM_CONFIG_CONFLICT = 'different configuration';
 
+const NO_MESSAGE_FOUND = 'no message found';
+
 const upsertStream = async (
   jsm: JetStreamManager,
   config: Parameters<JetStreamManager['streams']['add']>[0],
@@ -82,22 +84,19 @@ export const setupStreams = async (nc: NatsConnection, env: Env, logger: AppLogg
 };
 
 /**
- * The sequence of the last change this station published. On restart the Bridge resumes from here
- * rather than from a cursor of its own — the only durable state it needs already lives in the
- * stream, which is what lets the process be replaced or restarted without losing its place.
+ * The number of the last change this station published for one parent. The Bridge keeps no cursor
+ * of its own — the only durable state it needs already lives in the stream, which is what lets the
+ * process be replaced or restarted without losing its place. A subject with no message yet (first
+ * start, or aged out of the stream) counts as 0.
  */
-export const readLastPublishedSeq = async (nc: NatsConnection, logger: AppLogger): Promise<number> => {
+export const readLastPublishedSeq = async (nc: NatsConnection, subject: string): Promise<number> => {
   try {
     const jsm = await nc.jetstreamManager();
-    const info = await jsm.streams.info(NATS_STREAMS.LOCAL);
-    const lastSeq = info.state.last_seq;
-    if (!lastSeq) return 0;
-
-    const message = await jsm.streams.getMessage(NATS_STREAMS.LOCAL, { seq: lastSeq });
+    const message = await jsm.streams.getMessage(NATS_STREAMS.LOCAL, { last_by_subj: subject });
     const payload = JSON.parse(new TextDecoder().decode(message.data)) as { lastChangeSeq?: number };
     return typeof payload.lastChangeSeq === 'number' ? payload.lastChangeSeq : 0;
   } catch (error) {
-    logger.warn({ err: error }, 'Could not read the last published sequence — starting from zero');
-    return 0;
+    if (error instanceof Error && error.message.includes(NO_MESSAGE_FOUND)) return 0;
+    throw error;
   }
 };

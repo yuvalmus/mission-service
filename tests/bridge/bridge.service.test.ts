@@ -41,14 +41,51 @@ const buildRepository = (): jest.Mocked<SyncRepository> => ({
   getEntityDeltaSince: jest.fn(),
   getRenderLayer: jest.fn(),
   getSyncStatus: jest.fn(),
-  getLocalChangesSince: jest.fn().mockResolvedValue([]),
+  getLocalCounters: jest.fn().mockResolvedValue([]),
 });
 
-const buildNats = (published: PublishedMessage[]): NatsConnection =>
+interface StatusFeed {
+  push(status: { type: string }): void;
+  iterable: AsyncIterable<{ type: string }>;
+}
+
+const buildStatusFeed = (): StatusFeed => {
+  const queued: Array<{ type: string }> = [];
+  const waiting: Array<(result: IteratorResult<{ type: string }>) => void> = [];
+  return {
+    push: (status) => {
+      const waiter = waiting.shift();
+      if (waiter) waiter({ value: status, done: false });
+      else queued.push(status);
+    },
+    iterable: {
+      [Symbol.asyncIterator]: () => ({
+        next: () => {
+          const status = queued.shift();
+          return status
+            ? Promise.resolve({ value: status, done: false })
+            : new Promise<IteratorResult<{ type: string }>>((resolve) => waiting.push(resolve));
+        },
+      }),
+    },
+  };
+};
+
+interface NatsControls {
+  published: PublishedMessage[];
+  failNextPublish: boolean;
+  status: StatusFeed;
+}
+
+const buildNats = (controls: NatsControls): NatsConnection =>
   ({
     jetstream: () => ({
       publish: (subject: string, data: Uint8Array, options?: { msgID?: string }) => {
-        published.push({
+        if (controls.failNextPublish) {
+          controls.failNextPublish = false;
+          return Promise.reject(new Error('nats down'));
+        }
+        controls.published.push({
           subject,
           payload: JSON.parse(new TextDecoder().decode(data)),
           msgID: options?.msgID,
@@ -56,6 +93,7 @@ const buildNats = (published: PublishedMessage[]): NatsConnection =>
         return Promise.resolve({});
       },
     }),
+    status: () => controls.status.iterable,
     drain: () => Promise.resolve(),
   }) as unknown as NatsConnection;
 
@@ -90,26 +128,37 @@ describe('bridge.service', () => {
     published: [] as PublishedMessage[],
     pgClient: buildPgClient(),
     repository: buildRepository(),
+    nats: { published: [], failNextPublish: false, status: buildStatusFeed() } as NatsControls,
+    bridges: [] as Array<{ stop(): Promise<void> }>,
   };
 
   beforeEach(() => {
     ctx.published = [];
     ctx.pgClient = buildPgClient();
     ctx.repository = buildRepository();
+    ctx.nats = { published: ctx.published, failNextPublish: false, status: buildStatusFeed() };
     (readLastPublishedSeq as jest.Mock).mockResolvedValue(0);
+  });
+
+  afterEach(async () => {
+    await Promise.all(ctx.bridges.splice(0).map((bridge) => bridge.stop()));
+    jest.useRealTimers();
   });
 
   const startBridge = async () => {
     const bridge = createBridgeService({
       pgClient: ctx.pgClient,
-      nats: buildNats(ctx.published),
+      nats: buildNats(ctx.nats),
       syncRepository: ctx.repository,
       env: buildEnv(),
       logger: buildLogger(),
     });
+    ctx.bridges.push(bridge);
     await bridge.start();
     return bridge;
   };
+
+  const listened = () => (ctx.pgClient.query as jest.Mock).mock.calls.map(([sql]) => sql);
 
   const notify = async (channel: string, payload: string) => {
     ctx.pgClient.emit('notification', { channel, payload, processId: 1 });
@@ -119,9 +168,8 @@ describe('bridge.service', () => {
   it('subscribes to both database change channels', async () => {
     await startBridge();
 
-    const listened = (ctx.pgClient.query as jest.Mock).mock.calls.map(([sql]) => sql);
-    expect(listened).toContain(`LISTEN ${PG_CHANNELS.ENTITY_CHANGES}`);
-    expect(listened).toContain(`LISTEN ${PG_CHANNELS.MISSION_CHANGES}`);
+    expect(listened()).toContain(`LISTEN ${PG_CHANNELS.ENTITY_CHANGES}`);
+    expect(listened()).toContain(`LISTEN ${PG_CHANNELS.MISSION_CHANGES}`);
   });
 
   it('publishes a local change onto the mission-scoped subject', async () => {
@@ -189,34 +237,87 @@ describe('bridge.service', () => {
     expect(ctx.published[0]?.payload).toMatchObject({ missionId: MISSION_ID, operation: 'updated' });
   });
 
-  describe('catch-up after downtime', () => {
-    it('replays local changes above the last sequence that reached the stream', async () => {
+  describe('refill after an outage', () => {
+    it('publishes one reload pulse for a parent the stream is behind on', async () => {
+      ctx.repository.getLocalCounters.mockResolvedValue([{ parent_id: MISSION_ID, last_seq: '9' }]);
       (readLastPublishedSeq as jest.Mock).mockResolvedValue(5);
-      ctx.repository.getLocalChangesSince.mockResolvedValueOnce([
-        {
-          entity_id: ENTITY_ID,
-          parent_id: MISSION_ID,
-          entity_type: 'circle',
-          version: '3',
-          mission_change_seq: '7',
-          is_deleted: false,
-          origin_node: NODE_NAME,
-        },
-      ]);
 
       await startBridge();
 
-      expect(ctx.repository.getLocalChangesSince).toHaveBeenCalledWith(5, NODE_NAME, expect.any(Number));
-      expect(ctx.published).toHaveLength(1);
-      expect(ctx.published[0]?.payload).toMatchObject({ lastChangeSeq: 7 });
+      expect(readLastPublishedSeq).toHaveBeenCalledWith(expect.anything(), buildEntitySubject(NODE_NAME, MISSION_ID));
+      expect(ctx.published).toEqual([
+        {
+          subject: buildEntitySubject(NODE_NAME, MISSION_ID),
+          payload: { type: DELTA_TYPES.RELOAD, parentId: MISSION_ID, originNode: NODE_NAME, lastChangeSeq: 9 },
+          msgID: `reload-${MISSION_ID}-9`,
+        },
+      ]);
     });
 
-    it('publishes nothing when the stream is already up to date', async () => {
-      (readLastPublishedSeq as jest.Mock).mockResolvedValue(12);
+    it('publishes nothing for a parent the stream already covers', async () => {
+      ctx.repository.getLocalCounters.mockResolvedValue([{ parent_id: MISSION_ID, last_seq: '9' }]);
+      (readLastPublishedSeq as jest.Mock).mockResolvedValue(9);
 
       await startBridge();
 
       expect(ctx.published).toHaveLength(0);
+    });
+
+    it('refills again when NATS reconnects', async () => {
+      await startBridge();
+
+      ctx.nats.status.push({ type: 'reconnect' });
+      await flush();
+
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores NATS status events other than a reconnect', async () => {
+      await startBridge();
+
+      ctx.nats.status.push({ type: 'disconnect' });
+      await flush();
+
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries the refill with growing delays after a failed publish', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+      await startBridge();
+
+      ctx.nats.failNextPublish = true;
+      await notify(PG_CHANNELS.ENTITY_CHANGES, entityNotification());
+      ctx.repository.getLocalCounters.mockRejectedValueOnce(new Error('nats down'));
+
+      await jest.advanceTimersByTimeAsync(1_000);
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(1_999);
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(3);
+    });
+
+    it('resets the retry delay after a refill succeeds', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+      await startBridge();
+
+      ctx.nats.failNextPublish = true;
+      await notify(PG_CHANNELS.ENTITY_CHANGES, entityNotification());
+      await jest.advanceTimersByTimeAsync(1_000);
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(2);
+
+      ctx.nats.failNextPublish = true;
+      await notify(PG_CHANNELS.ENTITY_CHANGES, entityNotification());
+      await jest.advanceTimersByTimeAsync(1_000);
+      expect(ctx.repository.getLocalCounters).toHaveBeenCalledTimes(3);
+    });
+
+    it('still starts listening when the first refill fails', async () => {
+      ctx.repository.getLocalCounters.mockRejectedValueOnce(new Error('nats down'));
+
+      await startBridge();
+
+      expect(listened()).toContain(`LISTEN ${PG_CHANNELS.ENTITY_CHANGES}`);
     });
   });
 });

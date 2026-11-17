@@ -1,5 +1,5 @@
 import { Client, Notification } from 'pg';
-import { JetStreamClient, NatsConnection, StringCodec } from 'nats';
+import { Events, JetStreamClient, NatsConnection, StringCodec } from 'nats';
 import { Env } from 'config/env.config';
 import {
   BRIDGE_LIMITS,
@@ -58,14 +58,24 @@ export interface EntityDeltaEvent {
   originNode: string;
 }
 
+export interface EntityReloadEvent {
+  type: typeof DELTA_TYPES.RELOAD;
+  parentId: string;
+  originNode: string;
+  lastChangeSeq: number;
+}
+
 const codec = StringCodec();
 
 /**
  * Deterministic message id, so the broker can collapse a repeat rather than letting a duplicate
  * reach the map. An entity at a given version is one immutable fact, which makes
- * `<entity>-<version>` the natural identity — and makes republishing during catch-up safe.
+ * `<entity>-<version>` the natural identity.
  */
 const buildMessageId = (entityId: string, version: number): string => `${entityId}-${version}`;
+
+const buildReloadMessageId = (parentId: string, lastChangeSeq: number): string =>
+  `reload-${parentId}-${lastChangeSeq}`;
 
 export const createBridgeService = ({
   pgClient,
@@ -75,6 +85,11 @@ export const createBridgeService = ({
   logger,
 }: BridgeServiceDeps): BridgeService => {
   const js: JetStreamClient = nats.jetstream();
+  const retry: { handle: NodeJS.Timeout | null; delayMs: number; stopped: boolean } = {
+    handle: null,
+    delayMs: BRIDGE_LIMITS.REFILL_RETRY_MIN_MS,
+    stopped: false,
+  };
 
   const publishEntityChange = async (event: EntityDeltaEvent): Promise<void> => {
     await js.publish(
@@ -141,52 +156,73 @@ export const createBridgeService = ({
 
     handler?.(message.payload).catch((error) => {
       logger.error({ err: error, channel: message.channel }, 'Failed to relay a database notification');
+      scheduleRefill();
     });
   };
 
   /**
    * LISTEN/NOTIFY is atomic with the transaction but not durable: a notification raised while the
-   * Bridge was down is simply gone. The database still holds the truth, so on start-up the gap is
-   * closed by replaying every local change above the last sequence that reached the stream.
+   * Bridge or NATS was down is simply gone. The database still holds the truth, so whenever the
+   * stream may have missed something each parent's local counter is compared with the last number
+   * on that parent's subject, and where the stream is behind one reload pulse is published. A client
+   * answers it with a delta call.
    */
-  const catchUp = async (): Promise<void> => {
-    const startSeq = await readLastPublishedSeq(nats, logger);
-    const cursor = { seq: startSeq, published: 0 };
+  const refill = async (): Promise<void> => {
+    const counters = await syncRepository.getLocalCounters();
+    const published = { count: 0 };
 
-    for (let page = 0; page < BRIDGE_LIMITS.MAX_CATCH_UP_PAGES; page += 1) {
-      const rows = await syncRepository.getLocalChangesSince(
-        cursor.seq,
-        env.NODE_NAME,
-        BRIDGE_LIMITS.CATCH_UP_PAGE,
-      );
-      if (rows.length === 0) break;
+    for (const counter of counters) {
+      const subject = buildEntitySubject(env.NODE_NAME, counter.parent_id);
+      const lastChangeSeq = Number(counter.last_seq);
+      if ((await readLastPublishedSeq(nats, subject)) >= lastChangeSeq) continue;
 
-      for (const row of rows) {
-        await publishEntityChange({
-          type: DELTA_TYPES.CHANGED,
-          parentId: row.parent_id,
-          entityId: row.entity_id,
-          entityType: row.entity_type,
-          version: Number(row.version),
-          lastChangeSeq: Number(row.mission_change_seq),
-          isDeleted: row.is_deleted,
-          originNode: row.origin_node,
-        });
-        cursor.seq = Number(row.mission_change_seq);
-        cursor.published += 1;
-      }
-
-      if (rows.length < BRIDGE_LIMITS.CATCH_UP_PAGE) break;
+      const event: EntityReloadEvent = {
+        type: DELTA_TYPES.RELOAD,
+        parentId: counter.parent_id,
+        originNode: env.NODE_NAME,
+        lastChangeSeq,
+      };
+      await js.publish(subject, codec.encode(JSON.stringify(event)), {
+        msgID: buildReloadMessageId(counter.parent_id, lastChangeSeq),
+      });
+      published.count += 1;
     }
 
-    if (cursor.published > 0) {
-      logger.info({ from: startSeq, to: cursor.seq, published: cursor.published }, 'Bridge catch-up complete');
+    if (published.count > 0) {
+      logger.info({ parents: published.count }, 'Bridge refill published reload pulses');
+    }
+  };
+
+  const runRefill = async (): Promise<void> => {
+    try {
+      await refill();
+      retry.delayMs = BRIDGE_LIMITS.REFILL_RETRY_MIN_MS;
+    } catch (error) {
+      logger.warn({ err: error, retryMs: retry.delayMs }, 'Bridge refill failed — will retry');
+      scheduleRefill();
+    }
+  };
+
+  const scheduleRefill = (): void => {
+    if (retry.handle || retry.stopped) return;
+    const delayMs = retry.delayMs;
+    retry.delayMs = Math.min(delayMs * 2, BRIDGE_LIMITS.REFILL_RETRY_MAX_MS);
+    retry.handle = setTimeout(() => {
+      retry.handle = null;
+      void runRefill();
+    }, delayMs);
+    retry.handle.unref?.();
+  };
+
+  const watchReconnects = async (): Promise<void> => {
+    for await (const status of nats.status()) {
+      if (status.type === Events.Reconnect) await runRefill();
     }
   };
 
   return {
     start: async () => {
-      await catchUp();
+      await runRefill();
 
       pgClient.on('notification', onNotification);
       await pgClient.query(`LISTEN ${PG_CHANNELS.ENTITY_CHANGES}`);
@@ -196,9 +232,15 @@ export const createBridgeService = ({
         { node: env.NODE_NAME, channels: Object.values(PG_CHANNELS) },
         'Bridge is listening for database change notifications',
       );
+
+      watchReconnects().catch((error: unknown) => {
+        logger.warn({ err: error }, 'Stopped watching NATS connection status');
+      });
     },
 
     stop: async () => {
+      retry.stopped = true;
+      if (retry.handle) clearTimeout(retry.handle);
       pgClient.removeListener('notification', onNotification);
       await pgClient.end().catch(() => undefined);
       await nats.drain().catch(() => undefined);

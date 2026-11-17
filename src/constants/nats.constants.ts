@@ -57,10 +57,8 @@ export const NATS_CONNECTION = {
 } as const;
 
 export const BRIDGE_LIMITS = {
-  /** Upper bound on a single catch-up sweep after the Bridge has been down. */
-  CATCH_UP_PAGE: 1_000,
-  MAX_CATCH_UP_PAGES: 50,
-  RECONNECT_DELAY_MS: 5_000,
+  REFILL_RETRY_MIN_MS: 1_000,
+  REFILL_RETRY_MAX_MS: 30_000,
 } as const;
 
 export const DELTA_TYPES = {

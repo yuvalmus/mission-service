@@ -17,7 +17,7 @@ const buildRepository = (): jest.Mocked<SyncRepository> => ({
   getEntityDeltaSince: jest.fn(),
   getRenderLayer: jest.fn(),
   getSyncStatus: jest.fn(),
-  getLocalChangesSince: jest.fn(),
+  getLocalCounters: jest.fn(),
 });
 
 const buildDeltaRow = (seq: number, overrides: Record<string, unknown> = {}) => ({

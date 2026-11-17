@@ -18,8 +18,8 @@ const BRIDGE_SERVICE_SUFFIX = '-bridge';
  * die before announcing it — the write would be durable but invisible, and the peers' maps would
  * quietly disagree with the database. Instead the trigger raises the notification inside the same
  * transaction as the write, and this process carries it outward. If it crashes, nothing is lost:
- * the database still holds every change, and the Bridge replays from the stream's last sequence
- * when it comes back.
+ * the database still holds every change, and the Bridge refills the stream from it when it comes
+ * back.
  */
 const bootstrap = async (): Promise<void> => {
   const env = loadEnv();

@@ -41,21 +41,16 @@ export interface SyncStatusRow {
   entity_count: string;
 }
 
-export interface ChangePulseRow {
-  entity_id: string;
+export interface ChangeCounterRow {
   parent_id: string;
-  entity_type: string;
-  version: string;
-  mission_change_seq: string;
-  is_deleted: boolean;
-  origin_node: string;
+  last_seq: string;
 }
 
 export interface SyncRepository {
   getEntityDeltaSince(parentId: string, clock: VectorClock, limit: number): Promise<EntityDeltaRow[]>;
   getRenderLayer(parentId: string): Promise<EntityRenderRow[]>;
   getSyncStatus(parentId: string): Promise<SyncStatusRow | null>;
-  getLocalChangesSince(sinceSeq: number, originNode: string, limit: number): Promise<ChangePulseRow[]>;
+  getLocalCounters(): Promise<ChangeCounterRow[]>;
 }
 
 export interface PostgresSyncRepositoryDeps {
@@ -143,34 +138,16 @@ const SYNC_STATUS = `
 `;
 
 /**
- * Refill for the Bridge after it has been down.
- *
- * Restricted to rows this station authored, because that is exactly the set this station is
- * responsible for publishing — a change made on the peer reaches the mesh through the peer's own
- * stream and its mirror. Restricting it this way also keeps the cursor meaningful: every row here
- * came from one monotonically increasing local sequence, so "greater than the last one published"
- * cannot skip anything.
+ * Refill for the Bridge after an outage. The counters hold exactly this station's own writes per
+ * parent — the set this station is responsible for publishing; a change made on a peer reaches the
+ * mesh through that peer's own stream and its mirrors.
  */
-const LOCAL_CHANGES_SINCE = `
-  SELECT
-    entity_id,
-    COALESCE(mission_id, infra_id) AS parent_id,
-    entity_type,
-    version,
-    mission_change_seq,
-    is_deleted,
-    origin_node
-  FROM ${PG_TABLES.ENTITIES}
-  WHERE mission_change_seq > $1
-    AND origin_node = $2
-  ORDER BY mission_change_seq ASC
-  LIMIT $3
-`;
+const LOCAL_COUNTERS = `SELECT parent_id, last_seq FROM ${PG_TABLES.CHANGE_COUNTERS}`;
 
 export const createPostgresSyncRepository = ({ database }: PostgresSyncRepositoryDeps): SyncRepository => ({
-  getLocalChangesSince: async (sinceSeq, originNode, limit) => {
+  getLocalCounters: async () => {
     const result = await database.withContext(undefined, (client) =>
-      client.query<ChangePulseRow>(LOCAL_CHANGES_SINCE, [sinceSeq, originNode, limit]),
+      client.query<ChangeCounterRow>(LOCAL_COUNTERS),
     );
     return result.rows;
   },
