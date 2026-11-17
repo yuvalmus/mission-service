@@ -152,5 +152,4 @@ export const ENTITY_COLUMN_KEYS = ['id', 'parentId', 'entityType'] as const;
 
 export const MESH_DEFAULTS = {
   NODE_NAME: 'node-a',
-  PEER_NODE_NAME: 'node-b',
 } as const;

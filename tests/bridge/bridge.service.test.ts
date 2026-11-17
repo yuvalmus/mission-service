@@ -35,7 +35,7 @@ const buildLogger = () => ({
 }) as never;
 
 const buildEnv = (): Env =>
-  ({ NODE_NAME, PEER_NODE_NAME: PEER_NODE }) as Env;
+  ({ NODE_NAME, MESH_PEERS: [{ name: PEER_NODE, host: 'station-b-postgres', port: 5432 }] }) as Env;
 
 const buildRepository = (): jest.Mocked<SyncRepository> => ({
   getEntityDeltaSince: jest.fn(),

@@ -31,10 +31,10 @@ const upsertStream = async (
 };
 
 /**
- * Two streams per station:
+ * Streams per station:
  *
  *  - a local stream holding the changes this station produced, and
- *  - a mirror that pulls the peer's stream across the leaf-node link.
+ *  - one mirror per peer, pulling that peer's stream across the leaf-node links.
  *
  * The mirror is what makes a change durable across the mesh: it is written to the peer's disk
  * first, and copied here when the link returns. A message therefore survives a disconnection
@@ -61,24 +61,24 @@ export const setupStreams = async (nc: NatsConnection, env: Env, logger: AppLogg
     logger,
   );
 
-  if (!env.PEER_NODE_NAME || env.PEER_NODE_NAME === env.NODE_NAME) return;
-
-  await upsertStream(
-    jsm,
-    {
-      name: buildMirrorStreamName(env.PEER_NODE_NAME),
-      mirror: {
-        name: NATS_STREAMS.LOCAL,
-        external: { api: buildJetStreamApiPrefix(env.PEER_NODE_NAME), deliver: '' },
+  for (const peer of env.MESH_PEERS) {
+    await upsertStream(
+      jsm,
+      {
+        name: buildMirrorStreamName(peer.name),
+        mirror: {
+          name: NATS_STREAMS.LOCAL,
+          external: { api: buildJetStreamApiPrefix(peer.name), deliver: '' },
+        },
+        retention: RetentionPolicy.Limits,
+        discard: DiscardPolicy.Old,
+        storage: StorageType.File,
+        max_msgs: NATS_STREAM_LIMITS.MAX_MESSAGES,
+        max_age: NATS_STREAM_LIMITS.MAX_AGE_NANOS,
       },
-      retention: RetentionPolicy.Limits,
-      discard: DiscardPolicy.Old,
-      storage: StorageType.File,
-      max_msgs: NATS_STREAM_LIMITS.MAX_MESSAGES,
-      max_age: NATS_STREAM_LIMITS.MAX_AGE_NANOS,
-    },
-    logger,
-  );
+      logger,
+    );
+  }
 };
 
 /**

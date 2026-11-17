@@ -1,5 +1,5 @@
 import { Pool, PoolClient } from 'pg';
-import { Env } from 'config/env.config';
+import { Env, MeshPeer } from 'config/env.config';
 import { PG_EXTENSIONS, PG_TABLES } from 'constants/postgres.constants';
 import { AppLogger } from 'utils/logger.util';
 
@@ -17,11 +17,10 @@ export interface PglogicalSetupDeps {
 const REPLICATION_SET = 'mesh_replication';
 
 /**
- * `route_backups` is deliberately absent. It is this station's record of what was overwritten
- * here — including overwrites that arrived from the peer — so replicating it would both duplicate
- * every history row across the mesh and destroy the local meaning of the table.
+ * `change_counters` is deliberately absent. It numbers this station's own writes per parent; a
+ * peer's counter replicated over it would hand out numbers the peer has already used.
  */
-const REPLICATED_TABLES = [PG_TABLES.MISSIONS, PG_TABLES.INFRA, PG_TABLES.ENTITIES] as const;
+const REPLICATED_TABLES = [PG_TABLES.MISSIONS, PG_TABLES.INFRA, PG_TABLES.ENTITIES, PG_TABLES.ROUTE_BACKUPS] as const;
 
 const RETRY_INTERVAL_MS = 15_000;
 
@@ -50,10 +49,9 @@ export const describeReplicationError = (error: unknown): string =>
 
 export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): PglogicalMesh => {
   const nodeName = toIdentifier(env.NODE_NAME);
-  const peerName = toIdentifier(env.PEER_NODE_NAME);
-  const subscriptionName = `sub_${nodeName}_to_${peerName}`;
-  const peerHost = env.PEER_POSTGRES_HOST;
-  const timer: { handle: NodeJS.Timeout | null } = { handle: null };
+  const timers = new Map<string, NodeJS.Timeout>();
+
+  const toSubscriptionName = (peer: MeshPeer): string => `sub_${nodeName}_to_${toIdentifier(peer.name)}`;
 
   const withClient = async <T>(fn: (client: PoolClient) => Promise<T>): Promise<T> => {
     const client = await pool.connect();
@@ -152,7 +150,7 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
     }
   };
 
-  const readSubscriptionStatus = async (client: PoolClient): Promise<string | undefined> => {
+  const readSubscriptionStatus = async (client: PoolClient, subscriptionName: string): Promise<string | undefined> => {
     const result = await client
       .query<{ status: string }>(
         `SELECT status FROM pglogical.show_subscription_status() WHERE subscription_name = $1`,
@@ -169,8 +167,9 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
    *
    * `forward_origins := '{}'` keeps a change from being echoed back to the station that made it.
    */
-  const attemptSubscription = (): Promise<boolean> =>
+  const attemptSubscription = (peer: MeshPeer): Promise<boolean> =>
     withClient(async (client) => {
+      const subscriptionName = toSubscriptionName(peer);
       const local = await client.query('SELECT 1 FROM pglogical.node WHERE node_name = $1', [nodeName]);
       if (!local.rowCount) return false;
 
@@ -188,12 +187,12 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
              forward_origins := '{}',
              apply_delay := '0 seconds'::interval
            )`,
-          [subscriptionName, buildDsn(peerHost as string, env.PEER_POSTGRES_PORT, env), REPLICATION_SET],
+          [subscriptionName, buildDsn(peer.host, peer.port, env), REPLICATION_SET],
         );
-        logger.info({ subscription: subscriptionName, peer: env.PEER_NODE_NAME }, 'pglogical subscription created');
+        logger.info({ subscription: subscriptionName, peer: peer.name }, 'pglogical subscription created');
       }
 
-      const status = await readSubscriptionStatus(client);
+      const status = await readSubscriptionStatus(client, subscriptionName);
       if (!status || status === SUBSCRIPTION_STATUS.DOWN) {
         logger.warn({ subscription: subscriptionName, status }, 'pglogical subscription is not healthy yet');
         return false;
@@ -202,26 +201,47 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
       return true;
     });
 
-  const scheduleRetry = (): void => {
-    timer.handle = setTimeout(async () => {
+  const scheduleRetry = (peer: MeshPeer): void => {
+    const handle = setTimeout(async () => {
       try {
-        if (await attemptSubscription()) {
-          logger.info({ peer: env.PEER_NODE_NAME }, 'pglogical subscription established');
-          timer.handle = null;
+        if (await attemptSubscription(peer)) {
+          logger.info({ peer: peer.name }, 'pglogical subscription established');
+          timers.delete(peer.name);
           return;
         }
       } catch (error) {
-        logger.warn({ reason: describeReplicationError(error) }, 'pglogical subscription retry failed');
+        logger.warn({ peer: peer.name, reason: describeReplicationError(error) }, 'pglogical subscription retry failed');
       }
-      scheduleRetry();
+      if (timers.has(peer.name)) scheduleRetry(peer);
     }, RETRY_INTERVAL_MS);
 
-    timer.handle.unref?.();
+    handle.unref?.();
+    timers.set(peer.name, handle);
+  };
+
+  const connectPeer = async (peer: MeshPeer): Promise<void> => {
+    // create_subscription connects to the peer synchronously, so an unreachable peer surfaces as
+    // a thrown error rather than an unhealthy status. Both mean the same thing here: keep going.
+    const established = await attemptSubscription(peer).catch((error: unknown) => {
+      logger.warn({ peer: peer.name, reason: describeReplicationError(error) }, 'First subscription attempt failed');
+      return false;
+    });
+
+    if (established) {
+      logger.info({ peer: peer.name }, 'pglogical subscription verified');
+      return;
+    }
+
+    logger.info(
+      { peer: peer.name, retrySeconds: RETRY_INTERVAL_MS / 1000 },
+      'Peer unreachable — will keep retrying in background',
+    );
+    scheduleRetry(peer);
   };
 
   return {
     connect: async () => {
-      if (!peerHost) {
+      if (!env.MESH_PEERS.length) {
         logger.info('No peer configured — running as a single station');
         return;
       }
@@ -233,26 +253,12 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
         await ensureTables(client);
       });
 
-      // create_subscription connects to the peer synchronously, so an unreachable peer surfaces as
-      // a thrown error rather than an unhealthy status. Both mean the same thing here: keep going.
-      const established = await attemptSubscription().catch((error: unknown) => {
-        logger.warn({ reason: describeReplicationError(error) }, 'First subscription attempt failed');
-        return false;
-      });
-
-      if (established) {
-        logger.info({ peer: env.PEER_NODE_NAME }, 'pglogical subscription verified');
-        return;
-      }
-
-      logger.info({ retrySeconds: RETRY_INTERVAL_MS / 1000 }, 'Peer unreachable — will keep retrying in background');
-      scheduleRetry();
+      await Promise.all(env.MESH_PEERS.map(connectPeer));
     },
 
     stop: () => {
-      if (!timer.handle) return;
-      clearTimeout(timer.handle);
-      timer.handle = null;
+      timers.forEach((handle) => clearTimeout(handle));
+      timers.clear();
     },
   };
 };

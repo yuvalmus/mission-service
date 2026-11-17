@@ -24,12 +24,50 @@ const ENV_DEFAULTS = {
   POSTGRES_PASSWORD: 'mesh_pass',
   POSTGRES_DB: 'meshdb',
   POSTGRES_POOL_MAX: 5,
-  PEER_POSTGRES_PORT: 5432,
+  MESH_PEER_PORT: 5432,
   NATS_URL: 'nats://localhost:4222',
   TOMBSTONE_RETENTION_MINUTES: 10,
   GC_INTERVAL_SECONDS: 120,
   ROUTE_BACKUP_LIMIT: 10,
 } as const;
+
+export interface MeshPeer {
+  name: string;
+  host: string;
+  port: number;
+}
+
+const MESH_PEER_PATTERN = /^([^@\s]+)@([^:\s]+)(?::(\d+))?$/;
+
+const MAX_MESH_PEERS = 2;
+
+const MESH_PEERS_MESSAGES = {
+  FORMAT: 'MESH_PEERS entries must look like name@host:port',
+  TOO_MANY: `MESH_PEERS must list at most ${MAX_MESH_PEERS} peers`,
+  SELF: "MESH_PEERS must not include this station's NODE_NAME",
+} as const;
+
+const MeshPeersSchema = z
+  .string()
+  .default('')
+  .transform((value, ctx): MeshPeer[] => {
+    const matches = value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => MESH_PEER_PATTERN.exec(entry));
+
+    if (matches.some((match) => !match)) {
+      ctx.addIssue({ code: 'custom', message: MESH_PEERS_MESSAGES.FORMAT });
+      return z.NEVER;
+    }
+
+    return matches.map((match) => ({
+      name: match?.[1] ?? '',
+      host: match?.[2] ?? '',
+      port: match?.[3] ? Number(match[3]) : ENV_DEFAULTS.MESH_PEER_PORT,
+    }));
+  });
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -51,9 +89,7 @@ const EnvSchema = z.object({
 
   /** Identity of this station inside the mesh. Stamped on every row as `origin_node`. */
   NODE_NAME: z.string().min(1).default(MESH_DEFAULTS.NODE_NAME),
-  PEER_NODE_NAME: z.string().min(1).default(MESH_DEFAULTS.PEER_NODE_NAME),
-  PEER_POSTGRES_HOST: z.string().min(1).optional(),
-  PEER_POSTGRES_PORT: z.coerce.number().int().positive().default(ENV_DEFAULTS.PEER_POSTGRES_PORT),
+  MESH_PEERS: MeshPeersSchema,
 
   NATS_URL: z.string().min(1).default(ENV_DEFAULTS.NATS_URL),
 
@@ -66,9 +102,18 @@ const EnvSchema = z.object({
   ROUTE_BACKUP_LIMIT: z.coerce.number().int().positive().default(ENV_DEFAULTS.ROUTE_BACKUP_LIMIT),
 });
 
+const CheckedEnvSchema = EnvSchema.superRefine(({ NODE_NAME, MESH_PEERS }, ctx) => {
+  if (MESH_PEERS.length > MAX_MESH_PEERS) {
+    ctx.addIssue({ code: 'custom', message: MESH_PEERS_MESSAGES.TOO_MANY, path: ['MESH_PEERS'] });
+  }
+  if (MESH_PEERS.some((peer) => peer.name === NODE_NAME)) {
+    ctx.addIssue({ code: 'custom', message: MESH_PEERS_MESSAGES.SELF, path: ['MESH_PEERS'] });
+  }
+});
+
 export type Env = z.infer<typeof EnvSchema>;
 
 export const loadEnv = (): Env => {
   loadDotenv();
-  return EnvSchema.parse(process.env);
+  return CheckedEnvSchema.parse(process.env);
 };

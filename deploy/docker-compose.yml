@@ -1,13 +1,15 @@
-# One station of the mesh. Bring up two copies with different values files:
+# One station of the mesh. Bring up one, two or three copies with different values files:
 #
 #   docker network create mesh-net
 #   cat deploy/shared.env deploy/station-a/values.env > deploy/.env
 #   docker compose -p station-a -f deploy/docker-compose.yml up -d --build
 #   cat deploy/shared.env deploy/station-b/values.env > deploy/.env
 #   docker compose -p station-b -f deploy/docker-compose.yml up -d --build
+#   cat deploy/shared.env deploy/station-c/values.env > deploy/.env
+#   docker compose -p station-c -f deploy/docker-compose.yml up -d --build
 #
 # Each station is self-contained: its service talks only to its own database, so a
-# station keeps serving reads and writes when the other is gone.
+# station keeps serving reads and writes when the others are gone.
 #
 # Two networks per station:
 #   station   private to this station — the service and Bridge live only here
@@ -72,14 +74,12 @@ services:
       PORT: ${MISSION_PORT}
       LOG_LEVEL: ${LOG_LEVEL}
       NODE_NAME: ${NODE_NAME}
-      PEER_NODE_NAME: ${PEER_NODE_NAME}
+      MESH_PEERS: ${MESH_PEERS}
       POSTGRES_HOST: ${NODE_NAME}-postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${MESH_DB_USER}
       POSTGRES_PASSWORD: ${MESH_DB_PASS}
       POSTGRES_DB: ${MESH_DB_NAME}
-      PEER_POSTGRES_HOST: ${PEER_NODE_NAME}-postgres
-      PEER_POSTGRES_PORT: 5432
       TOMBSTONE_RETENTION_MINUTES: ${TOMBSTONE_RETENTION_MINUTES}
       GC_INTERVAL_SECONDS: ${GC_INTERVAL_SECONDS}
       ROUTE_BACKUP_LIMIT: ${ROUTE_BACKUP_LIMIT}
@@ -104,7 +104,7 @@ services:
       NODE_ENV: production
       LOG_LEVEL: ${LOG_LEVEL}
       NODE_NAME: ${NODE_NAME}
-      PEER_NODE_NAME: ${PEER_NODE_NAME}
+      MESH_PEERS: ${MESH_PEERS}
       POSTGRES_HOST: ${NODE_NAME}-postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${MESH_DB_USER}
