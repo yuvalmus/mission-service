@@ -1,5 +1,4 @@
 export const SYNC_LIMITS = {
-  DEFAULT_SINCE_SEQ: 0,
   /** Edge hardware and a shared LAN — pages stay small by default. */
   DEFAULT_PAGE: 500,
   MAX_PAGE: 5000,
@@ -21,3 +20,5 @@ export const PARENT_KINDS = {
 } as const;
 
 export type ParentKind = (typeof PARENT_KINDS)[keyof typeof PARENT_KINDS];
+
+export type VectorClock = Record<string, number>;

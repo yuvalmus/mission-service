@@ -1,4 +1,5 @@
 import { ERROR_MESSAGES } from 'constants/error.constants';
+import { VectorClock } from 'constants/sync.constants';
 import { NotFoundError } from 'errors/app.errors';
 import {
   EntityDeltaDto,
@@ -16,7 +17,7 @@ import {
 import { AppLogger } from 'utils/logger.util';
 
 export interface SyncService {
-  getEntityDelta(parentId: string, sinceSeq: number, limit: number): Promise<EntityDeltaDto>;
+  getEntityDelta(parentId: string, clock: VectorClock, limit: number): Promise<EntityDeltaDto>;
   getRenderLayer(parentId: string): Promise<RenderLayerDto>;
   getStatus(parentId: string): Promise<SyncStatusDto>;
 }
@@ -29,6 +30,18 @@ export interface SyncServiceDeps {
 
 /** BIGINT arrives as a string from node-postgres — sequences stay well inside Number range here. */
 const toNumber = (value: string | number | null): number => (value === null ? 0 : Number(value));
+
+const toClock = (raw: Record<string, string | number> | null): VectorClock =>
+  Object.fromEntries(Object.entries(raw ?? {}).map(([node, seq]) => [node, toNumber(seq)]));
+
+const raiseClock = (clock: VectorClock, entities: { originNode: string; changeSeq: number }[]): VectorClock =>
+  entities.reduce<VectorClock>(
+    (merged, entity) => ({
+      ...merged,
+      [entity.originNode]: Math.max(merged[entity.originNode] ?? 0, entity.changeSeq),
+    }),
+    { ...clock },
+  );
 
 const toDeltaItem = (row: EntityDeltaRow): EntityDeltaItemDto => ({
   entityId: row.entity_id,
@@ -65,33 +78,31 @@ const toStatus = (row: SyncStatusRow, nodeName: string): SyncStatusDto => ({
   parentId: row.parent_id ?? '',
   parentKind: row.parent_kind ?? '',
   isDeleted: row.is_deleted,
-  lastChangeSeq: toNumber(row.last_change_seq),
+  clock: toClock(row.clock),
   entityCount: toNumber(row.entity_count),
   node: nodeName,
 });
 
 export const createSyncService = ({ syncRepository, nodeName, logger }: SyncServiceDeps): SyncService => ({
   /**
-   * One page of everything that changed above `sinceSeq`. `nextSeq` is the cursor to resume from:
-   * a client that was offline replays forward from wherever it stopped, which is also the path the
-   * Bridge uses to refill the stream after a crash.
+   * One page of everything above the caller's clock. The returned clock is the cursor to resume
+   * from: a client that was offline replays forward from wherever it stopped, which is also what a
+   * Bridge reload pulse asks it to do.
    */
-  getEntityDelta: async (parentId, sinceSeq, limit) => {
-    const rows = await syncRepository.getEntityDeltaSince(parentId, sinceSeq, limit);
+  getEntityDelta: async (parentId, clock, limit) => {
+    const rows = await syncRepository.getEntityDeltaSince(parentId, clock, limit);
     const entities = rows.map(toDeltaItem);
-    const nextSeq = entities.reduce((highest, entity) => Math.max(highest, entity.changeSeq), sinceSeq);
 
-    logger.info({ parentId, sinceSeq, returned: entities.length }, 'Served entity delta');
+    logger.info({ parentId, clock, returned: entities.length }, 'Served entity delta');
 
-    return { parentId, sinceSeq, nextSeq, hasMore: rows.length === limit, entities };
+    return { parentId, clock: raiseClock(clock, entities), hasMore: rows.length === limit, entities };
   },
 
   getRenderLayer: async (parentId) => {
     const rows = await syncRepository.getRenderLayer(parentId);
     const entities = rows.map(toRenderItem);
-    const changeSeq = entities.reduce((highest, entity) => Math.max(highest, entity.changeSeq), 0);
 
-    return { parentId, changeSeq, entities };
+    return { parentId, clock: raiseClock({}, entities), entities };
   },
 
   getStatus: async (parentId) => {

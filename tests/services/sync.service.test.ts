@@ -38,6 +38,14 @@ const buildDeltaRow = (seq: number, overrides: Record<string, unknown> = {}) => 
   ...overrides,
 });
 
+const buildStatusRow = (clock: Record<string, string | number> | null) => ({
+  parent_id: MISSION_ID,
+  parent_kind: 'mission',
+  is_deleted: false,
+  clock,
+  entity_count: '4',
+});
+
 describe('sync.service', () => {
   const deps = { repository: buildRepository() };
 
@@ -49,35 +57,42 @@ describe('sync.service', () => {
     createSyncService({ syncRepository: deps.repository, nodeName: NODE_NAME, logger: buildLogger() });
 
   describe('getEntityDelta', () => {
-    it('returns the highest sequence seen as the cursor to resume from', async () => {
-      deps.repository.getEntityDeltaSince.mockResolvedValue([buildDeltaRow(3), buildDeltaRow(7)] as never);
+    it('raises each station in the clock to the highest number returned for it', async () => {
+      deps.repository.getEntityDeltaSince.mockResolvedValue([
+        buildDeltaRow(3, { origin_node: 'station-a' }),
+        buildDeltaRow(7, { origin_node: 'station-a' }),
+        buildDeltaRow(2, { origin_node: 'station-b' }),
+      ] as never);
 
-      const delta = await service().getEntityDelta(MISSION_ID, 1, 500);
+      const delta = await service().getEntityDelta(MISSION_ID, { 'station-a': 1, 'station-c': 9 }, 500);
 
-      expect(delta.sinceSeq).toBe(1);
-      expect(delta.nextSeq).toBe(7);
-      expect(delta.entities).toHaveLength(2);
+      expect(deps.repository.getEntityDeltaSince).toHaveBeenCalledWith(
+        MISSION_ID,
+        { 'station-a': 1, 'station-c': 9 },
+        500,
+      );
+      expect(delta.clock).toEqual({ 'station-a': 7, 'station-b': 2, 'station-c': 9 });
     });
 
-    it('keeps the caller cursor unchanged when nothing has changed', async () => {
+    it('keeps the caller clock unchanged when nothing has changed', async () => {
       deps.repository.getEntityDeltaSince.mockResolvedValue([]);
 
-      const delta = await service().getEntityDelta(MISSION_ID, 42, 500);
+      const delta = await service().getEntityDelta(MISSION_ID, { 'station-a': 42 }, 500);
 
-      expect(delta.nextSeq).toBe(42);
+      expect(delta.clock).toEqual({ 'station-a': 42 });
       expect(delta.hasMore).toBe(false);
     });
 
-    it('signals more pages when the result fills the limit exactly', async () => {
-      deps.repository.getEntityDeltaSince.mockResolvedValue([buildDeltaRow(3), buildDeltaRow(5)] as never);
+    it('reports another page when the page is full', async () => {
+      deps.repository.getEntityDeltaSince.mockResolvedValue([buildDeltaRow(1), buildDeltaRow(2)] as never);
 
-      expect((await service().getEntityDelta(MISSION_ID, 0, 2)).hasMore).toBe(true);
+      expect((await service().getEntityDelta(MISSION_ID, {}, 2)).hasMore).toBe(true);
     });
 
     it('converts BIGINT columns arriving as strings into numbers', async () => {
       deps.repository.getEntityDeltaSince.mockResolvedValue([buildDeltaRow(9)] as never);
 
-      const [entity] = (await service().getEntityDelta(MISSION_ID, 0, 500)).entities;
+      const [entity] = (await service().getEntityDelta(MISSION_ID, {}, 500)).entities;
 
       expect(entity?.changeSeq).toBe(9);
       expect(entity?.version).toBe(2);
@@ -88,7 +103,7 @@ describe('sync.service', () => {
         buildDeltaRow(4, { is_deleted: false, is_hidden: true }),
       ] as never);
 
-      const [entity] = (await service().getEntityDelta(MISSION_ID, 0, 500)).entities;
+      const [entity] = (await service().getEntityDelta(MISSION_ID, {}, 500)).entities;
 
       expect(entity?.isDeleted).toBe(false);
       expect(entity?.isHidden).toBe(true);
@@ -96,49 +111,40 @@ describe('sync.service', () => {
   });
 
   describe('getRenderLayer', () => {
-    it('reports the sequence the snapshot is current as of, so polling can start from it', async () => {
-      deps.repository.getRenderLayer.mockResolvedValue([buildDeltaRow(2), buildDeltaRow(11)] as never);
+    it('takes the render clock from the same rows it returns', async () => {
+      deps.repository.getRenderLayer.mockResolvedValue([
+        buildDeltaRow(4, { origin_node: 'station-a' }),
+        buildDeltaRow(6, { origin_node: 'station-b' }),
+      ] as never);
 
-      expect((await service().getRenderLayer(MISSION_ID)).changeSeq).toBe(11);
+      expect((await service().getRenderLayer(MISSION_ID)).clock).toEqual({ 'station-a': 4, 'station-b': 6 });
     });
 
-    it('reports sequence zero for an empty mission', async () => {
+    it('reports an empty render clock for an empty mission', async () => {
       deps.repository.getRenderLayer.mockResolvedValue([]);
 
-      expect((await service().getRenderLayer(MISSION_ID)).changeSeq).toBe(0);
+      expect((await service().getRenderLayer(MISSION_ID)).clock).toEqual({});
     });
   });
 
   describe('getStatus', () => {
-    it('reports the parent kind and high-water mark for this station', async () => {
-      deps.repository.getSyncStatus.mockResolvedValue({
-        parent_id: MISSION_ID,
-        parent_kind: 'mission',
-        is_deleted: false,
-        last_change_seq: '17',
-        entity_count: '4',
-      });
+    it('reports the database clock per station in the status', async () => {
+      deps.repository.getSyncStatus.mockResolvedValue(buildStatusRow({ 'station-a': '12', 'station-b': 3 }));
 
       expect(await service().getStatus(MISSION_ID)).toEqual({
         parentId: MISSION_ID,
         parentKind: 'mission',
         isDeleted: false,
-        lastChangeSeq: 17,
+        clock: { 'station-a': 12, 'station-b': 3 },
         entityCount: 4,
         node: NODE_NAME,
       });
     });
 
-    it('reports zero rather than null for a parent that has no entities yet', async () => {
-      deps.repository.getSyncStatus.mockResolvedValue({
-        parent_id: MISSION_ID,
-        parent_kind: 'mission',
-        is_deleted: false,
-        last_change_seq: null,
-        entity_count: '0',
-      });
+    it('reports an empty clock for a parent with no entities', async () => {
+      deps.repository.getSyncStatus.mockResolvedValue(buildStatusRow(null));
 
-      expect((await service().getStatus(MISSION_ID)).lastChangeSeq).toBe(0);
+      expect((await service().getStatus(MISSION_ID)).clock).toEqual({});
     });
 
     it('raises a not-found for an unknown parent', async () => {

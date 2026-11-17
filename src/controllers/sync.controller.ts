@@ -11,8 +11,13 @@ export interface SyncController {
 
 export const createSyncController = (syncService: SyncService): SyncController => ({
   getEntityDelta: async (req, res) => {
-    const { parentId, sinceSeq, limit } = req.query as unknown as EntityDeltaQuery;
-    res.status(HTTP_STATUS.OK).json(await syncService.getEntityDelta(parentId, sinceSeq, limit));
+    const { parentId, clock, limit } = req.query as unknown as EntityDeltaQuery;
+    const delta = await syncService.getEntityDelta(parentId, clock, limit);
+    if (delta.entities.length === 0) {
+      res.status(HTTP_STATUS.NOT_MODIFIED).end();
+      return;
+    }
+    res.status(HTTP_STATUS.OK).json(delta);
   },
 
   getRenderLayer: async (req, res) => {

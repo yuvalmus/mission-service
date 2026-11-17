@@ -1,4 +1,5 @@
 import { z, registry as _registry } from 'config/openapi.config';
+import { ERROR_MESSAGES } from 'constants/error.constants';
 import { SYNC_LIMITS } from 'constants/sync.constants';
 
 export const SyncParentQuerySchema = z.object({
@@ -7,9 +8,22 @@ export const SyncParentQuerySchema = z.object({
 
 export type SyncParentQuery = z.infer<typeof SyncParentQuerySchema>;
 
+export const VectorClockSchema = z.record(z.string().min(1), z.number().int().nonnegative());
+
 export const EntityDeltaQuerySchema = SyncParentQuerySchema.extend({
-  /** The highest sequence the caller has already processed. */
-  sinceSeq: z.coerce.number().int().nonnegative().default(SYNC_LIMITS.DEFAULT_SINCE_SEQ),
+  /** The highest number the caller has seen from each station, as JSON. */
+  clock: z
+    .string()
+    .default('{}')
+    .transform((value, ctx) => {
+      try {
+        return JSON.parse(value) as unknown;
+      } catch {
+        ctx.addIssue({ code: 'custom', message: ERROR_MESSAGES.SYNC_CLOCK_INVALID });
+        return z.NEVER;
+      }
+    })
+    .pipe(VectorClockSchema),
   limit: z.coerce.number().int().positive().max(SYNC_LIMITS.MAX_PAGE).default(SYNC_LIMITS.DEFAULT_PAGE),
 });
 
@@ -39,10 +53,9 @@ export type EntityDeltaItemDto = z.infer<typeof EntityDeltaItemDtoSchema>;
 export const EntityDeltaDtoSchema = z
   .object({
     parentId: z.string().uuid(),
-    sinceSeq: z.number().int(),
-    /** Feed this back as `sinceSeq` on the next call. */
-    nextSeq: z.number().int(),
-    /** True when the page was capped — call again from `nextSeq` to continue. */
+    /** Keep this and send it back as `clock` on the next call; never rebuild it from the entities held. */
+    clock: VectorClockSchema,
+    /** True when the page was capped — call again with `clock` to continue. */
     hasMore: z.boolean(),
     entities: z.array(EntityDeltaItemDtoSchema),
   })
@@ -71,8 +84,8 @@ export type EntityRenderItemDto = z.infer<typeof EntityRenderItemDtoSchema>;
 export const RenderLayerDtoSchema = z
   .object({
     parentId: z.string().uuid(),
-    /** The sequence this snapshot is current as of — use it to seed delta polling. */
-    changeSeq: z.number().int(),
+    /** The clock this snapshot is current as of — use it to seed delta polling. */
+    clock: VectorClockSchema,
     entities: z.array(EntityRenderItemDtoSchema),
   })
   .openapi('RenderLayerDto');
@@ -84,7 +97,7 @@ export const SyncStatusDtoSchema = z
     parentId: z.string().uuid(),
     parentKind: z.string(),
     isDeleted: z.boolean(),
-    lastChangeSeq: z.number().int(),
+    clock: VectorClockSchema,
     entityCount: z.number().int(),
     node: z.string(),
   })

@@ -6,6 +6,7 @@ import { createPostgresEntityRepository } from 'repositories/postgres/entity.rep
 import { createPostgresHistoryRepository } from 'repositories/postgres/history.repository';
 import { createPostgresMissionRepository } from 'repositories/postgres/mission.repository';
 import { createPostgresStakeRepository } from 'repositories/postgres/stake.repository';
+import { createPostgresSyncRepository } from 'repositories/postgres/sync.repository';
 import { toEntityProperties } from 'mappers/entity-row.mapper';
 import { buildCircle } from '../fixtures/entity.fixtures';
 import { buildMission, MISSION_ID } from '../fixtures/mission.fixtures';
@@ -46,6 +47,8 @@ describe('postgres repositories', () => {
   const stakeRepository = () => createPostgresStakeRepository({ database: mock.value.database, nodeName: NODE_NAME });
 
   const historyRepository = () => createPostgresHistoryRepository({ database: mock.value.database });
+
+  const syncRepository = () => createPostgresSyncRepository({ database: mock.value.database });
 
   describe('entity repository', () => {
     it('resolves the parent against both missions and infra so belongs_to_one can hold', async () => {
@@ -214,6 +217,25 @@ describe('postgres repositories', () => {
       expect(normalizeSql(mock.value.lastQuery()?.sql ?? '')).toContain(
         `UPDATE ${PG_TABLES.INFRA} SET version_number = version_number + 1`,
       );
+    });
+  });
+
+  describe('sync repository', () => {
+    it('asks each station only for numbers above what the caller has seen from it', async () => {
+      await syncRepository().getEntityDeltaSince(MISSION_ID, { 'station-a': 4 }, 500);
+
+      const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
+      expect(sql).toContain('e.mission_change_seq > COALESCE(($2::jsonb ->> e.origin_node)::bigint, 0)');
+      expect(sql).toContain('ORDER BY e.origin_node, e.mission_change_seq');
+      expect(mock.value.lastQuery()?.values).toEqual([MISSION_ID, '{"station-a":4}', 500]);
+    });
+
+    it('builds the status clock from the highest number per origin station', async () => {
+      await syncRepository().getSyncStatus(MISSION_ID);
+
+      const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
+      expect(sql).toContain('jsonb_object_agg(');
+      expect(sql).toContain('GROUP BY e.origin_node');
     });
   });
 

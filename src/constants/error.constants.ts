@@ -50,5 +50,5 @@ export const ERROR_MESSAGES = {
   ENTITY_BACKUP_NOT_FOUND: (entityId: string, eventId: string) =>
     `No history entry ${eventId} exists for entity ${entityId}.`,
   SYNC_PARENT_REQUIRED: 'parentId is required.',
-  SYNC_SINCE_SEQ_INVALID: 'sinceSeq must be a non-negative integer.',
+  SYNC_CLOCK_INVALID: 'clock must be a JSON object of station names to non-negative integers.',
 } as const;

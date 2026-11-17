@@ -1,4 +1,5 @@
 import { PG_TABLES, PG_VIEWS } from 'constants/postgres.constants';
+import { VectorClock } from 'constants/sync.constants';
 import { PostgresDatabase } from 'database/postgres.database';
 
 export interface EntityDeltaRow {
@@ -36,7 +37,7 @@ export interface SyncStatusRow {
   parent_id: string | null;
   parent_kind: string | null;
   is_deleted: boolean;
-  last_change_seq: string | null;
+  clock: Record<string, string | number> | null;
   entity_count: string;
 }
 
@@ -51,7 +52,7 @@ export interface ChangePulseRow {
 }
 
 export interface SyncRepository {
-  getEntityDeltaSince(parentId: string, sinceSeq: number, limit: number): Promise<EntityDeltaRow[]>;
+  getEntityDeltaSince(parentId: string, clock: VectorClock, limit: number): Promise<EntityDeltaRow[]>;
   getRenderLayer(parentId: string): Promise<EntityRenderRow[]>;
   getSyncStatus(parentId: string): Promise<SyncStatusRow | null>;
   getLocalChangesSince(sinceSeq: number, originNode: string, limit: number): Promise<ChangePulseRow[]>;
@@ -64,10 +65,11 @@ export interface PostgresSyncRepositoryDeps {
 /**
  * Delta sync.
  *
- * Every write assigns the row the next value of the station's change sequence, so "what changed
- * since I last looked" is a single indexed range scan. The client keeps the highest sequence it
- * has processed and asks for everything above it — only the entities that actually moved cross
- * the LAN, instead of the whole mission.
+ * Every write takes the next number from its station's counter for the parent, so "what changed
+ * since I last looked" is one indexed range scan per station. The client keeps the highest number
+ * it has seen from each station and asks for everything above it — only the entities that actually
+ * moved cross the LAN, instead of the whole mission. Rows come ordered by station, then number, so
+ * a page cut leaves a prefix of every station's changes.
  *
  * `is_hidden` folds the two ways an entity can disappear into one flag the client can act on:
  * its own tombstone, or its parent being masked.
@@ -92,8 +94,8 @@ const ENTITY_DELTA = `
   LEFT JOIN ${PG_TABLES.MISSIONS} m ON e.mission_id = m.id
   LEFT JOIN ${PG_TABLES.INFRA} i ON e.infra_id = i.id
   WHERE (e.mission_id = $1 OR e.infra_id = $1)
-    AND e.mission_change_seq > $2
-  ORDER BY e.mission_change_seq ASC, e.entity_id ASC
+    AND e.mission_change_seq > COALESCE(($2::jsonb ->> e.origin_node)::bigint, 0)
+  ORDER BY e.origin_node, e.mission_change_seq
   LIMIT $3
 `;
 
@@ -116,19 +118,19 @@ const RENDER_LAYER = `
 `;
 
 /**
- * The parent's current high-water mark, derived from its entities rather than kept as a counter
- * on the parent row. A counter would mean every entity write also updated the parent — a row lock
- * that serialises concurrent edits to the same mission, which is exactly what the native sequence
- * was chosen to avoid.
+ * The parent's clock: the highest number per origin station among its entities. Derived from the
+ * rows rather than read from change_counters, which is local and only counts this station's writes.
  */
 const SYNC_STATUS = `
   SELECT
     parent.id AS parent_id,
     parent.kind AS parent_kind,
     parent.deleted_at IS NOT NULL AS is_deleted,
-    (SELECT MAX(e.mission_change_seq)
-       FROM ${PG_TABLES.ENTITIES} e
-      WHERE e.mission_id = parent.id OR e.infra_id = parent.id) AS last_change_seq,
+    (SELECT jsonb_object_agg(s.origin_node, s.max_seq)
+       FROM (SELECT e.origin_node, MAX(e.mission_change_seq) AS max_seq
+               FROM ${PG_TABLES.ENTITIES} e
+              WHERE e.mission_id = parent.id OR e.infra_id = parent.id
+              GROUP BY e.origin_node) s) AS clock,
     (SELECT COUNT(*)
        FROM ${PG_VIEWS.ACTIVE_ENTITIES} a
       WHERE a.mission_id = parent.id OR a.infra_id = parent.id) AS entity_count
@@ -173,9 +175,9 @@ export const createPostgresSyncRepository = ({ database }: PostgresSyncRepositor
     return result.rows;
   },
 
-  getEntityDeltaSince: async (parentId, sinceSeq, limit) => {
+  getEntityDeltaSince: async (parentId, clock, limit) => {
     const result = await database.withContext(undefined, (client) =>
-      client.query<EntityDeltaRow>(ENTITY_DELTA, [parentId, sinceSeq, limit]),
+      client.query<EntityDeltaRow>(ENTITY_DELTA, [parentId, JSON.stringify(clock), limit]),
     );
     return result.rows;
   },

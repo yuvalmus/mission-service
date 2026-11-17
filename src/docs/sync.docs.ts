@@ -37,14 +37,18 @@ registry.registerPath({
   path: PATHS.DELTA,
   operationId: 'getEntityDelta',
   tags: [TAGS.SYNC],
-  summary: 'Entities changed since a given change sequence',
+  summary: 'Entities changed since a per-station clock',
   description:
-    'Returns only the entities whose change sequence is greater than `sinceSeq`. Keep `nextSeq` and ' +
-    'pass it back on the following call to continue where you left off after a disconnection.',
+    'Returns only the entities whose number from their origin station is greater than the one in ' +
+    '`clock`. Keep the returned `clock` and pass it back on the following call to continue where you ' +
+    'left off after a disconnection. Never rebuild it from the entities you hold.',
   request: {
     query: z.object({
       parentId: parentIdParam,
-      sinceSeq: z.coerce.number().int().nonnegative().optional(),
+      clock: z.string().optional().openapi({
+        description: 'JSON object of station name to the last number seen from it',
+        example: '{"station-a":10,"station-b":4}',
+      }),
       limit: z.coerce.number().int().positive().optional(),
     }),
   },
@@ -53,6 +57,8 @@ registry.registerPath({
       description: 'One page of changes',
       content: { 'application/json': { schema: EntityDeltaDtoSchema } },
     },
+    [HTTP_STATUS.NOT_MODIFIED]: { description: 'Nothing changed since the clock' },
+    [HTTP_STATUS.BAD_REQUEST]: { description: 'Malformed clock' },
   },
 });
 
@@ -64,7 +70,7 @@ registry.registerPath({
   summary: 'Full render snapshot for the map layer',
   description:
     'Geometry already serialised to GeoJSON and render defaults injected by the database, so the ' +
-    'browser parses rather than computes. Use `changeSeq` to seed delta polling.',
+    'browser parses rather than computes. Use `clock` to seed delta polling.',
   request: { query: z.object({ parentId: parentIdParam }) },
   responses: {
     [HTTP_STATUS.OK]: {
@@ -79,7 +85,7 @@ registry.registerPath({
   path: PATHS.STATUS,
   operationId: 'getSyncStatus',
   tags: [TAGS.SYNC],
-  summary: 'Current change sequence and entity count for a parent',
+  summary: 'Current per-station clock and entity count for a parent',
   request: { query: z.object({ parentId: parentIdParam }) },
   responses: {
     [HTTP_STATUS.OK]: {
