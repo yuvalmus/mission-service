@@ -24,7 +24,7 @@ export type PgChannel = (typeof PG_CHANNELS)[keyof typeof PG_CHANNELS];
 export const PG_FUNCTIONS = {
   GEOM_FROM_GEOJSON: 'app_geom_from_geojson',
   ASSIGN_ENTITY_CHANGE_METADATA: 'assign_entity_change_metadata',
-  BACKUP_ENTITY_VERSION: 'backup_entity_version',
+  RECORD_ENTITY_VERSION: 'record_entity_version',
   STAMP_ORIGIN_NODE: 'stamp_origin_node',
   NOTIFY_ENTITY_CHANGE: 'notify_entity_change',
   NOTIFY_MISSION_CHANGE: 'notify_mission_change',
@@ -32,7 +32,7 @@ export const PG_FUNCTIONS = {
 
 export const PG_TRIGGERS = {
   ENTITY_CHANGE_METADATA: 'trg_entities_assign_change_metadata',
-  ENTITY_BACKUP: 'trg_entities_lww_backup',
+  ENTITY_HISTORY: 'trg_entities_record_version',
   ENTITY_NOTIFY: 'trg_entities_notify',
   MISSION_NOTIFY: 'trg_missions_notify',
   MISSION_ORIGIN: 'trg_missions_stamp_origin',

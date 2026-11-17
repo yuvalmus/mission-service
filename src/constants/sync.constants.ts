@@ -11,8 +11,8 @@ export const SYNC_ROUTES = {
   RENDER_LAYER: '/entities/render',
   STATUS: '/status',
   HISTORY: '/entities/:entityId/history',
-  RESTORE: '/entities/:entityId/restore/:version',
-  DUPLICATE: '/entities/:entityId/duplicate/:version',
+  RESTORE: '/entities/:entityId/restore/:eventId',
+  DUPLICATE: '/entities/:entityId/duplicate/:eventId',
 } as const;
 
 export const PARENT_KINDS = {

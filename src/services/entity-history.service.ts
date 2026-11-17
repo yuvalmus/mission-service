@@ -1,43 +1,48 @@
 import { ERROR_MESSAGES } from 'constants/error.constants';
 import { UnitOfWork } from 'database/database.types';
 import { NotFoundError } from 'errors/app.errors';
-import { EntityBackupRow, HistoryRepository } from 'repositories/postgres/history.repository';
+import { EntityVersionRow, HistoryRepository } from 'repositories/postgres/history.repository';
 import { AppLogger } from 'utils/logger.util';
 
 export interface EntityVersionDto {
+  eventId: string;
   entityId: string;
   version: number;
   entityType: string;
+  originNode: string;
+  changeSeq: number;
+  lastUpdateTime: Date;
+  isDeleted: boolean;
+  isCurrent: boolean;
   geometry: unknown | null;
   properties: Record<string, unknown> | null;
-  isDeleted: boolean;
-  updatedByNode: string | null;
-  createdAt: Date;
 }
 
 export interface EntityHistoryService {
   listVersions(entityId: string): Promise<EntityVersionDto[]>;
-  restoreVersion(entityId: string, version: number): Promise<void>;
-  duplicateFromVersion(entityId: string, version: number, name: string | null): Promise<string>;
+  restoreVersion(entityId: string, eventId: string): Promise<void>;
+  duplicateFromVersion(entityId: string, eventId: string, name: string | null): Promise<string>;
 }
 
 export interface EntityHistoryServiceDeps {
   historyRepository: HistoryRepository;
   unitOfWork: UnitOfWork;
   nodeName: string;
-  backupLimit: number;
   logger: AppLogger;
 }
 
-const toDto = (row: EntityBackupRow): EntityVersionDto => ({
-  entityId: row.route_id,
+const toDto = (row: EntityVersionRow): EntityVersionDto => ({
+  eventId: row.event_id,
+  entityId: row.entity_id,
   version: Number(row.version),
   entityType: row.entity_type,
+  originNode: row.origin_node,
+  changeSeq: Number(row.mission_change_seq),
+  lastUpdateTime: row.last_update_time,
+  isDeleted: row.is_deleted,
+  isCurrent: row.is_current,
   geometry: row.geometry ?? null,
   properties: row.properties,
-  isDeleted: row.is_deleted,
-  updatedByNode: row.updated_by_node,
-  createdAt: row.created_at,
 });
 
 /**
@@ -51,30 +56,29 @@ export const createEntityHistoryService = ({
   historyRepository,
   unitOfWork,
   nodeName,
-  backupLimit,
   logger,
 }: EntityHistoryServiceDeps): EntityHistoryService => ({
   listVersions: async (entityId) => {
-    const rows = await historyRepository.listVersions(entityId, backupLimit);
+    const rows = await historyRepository.listVersions(entityId);
     return rows.map(toDto);
   },
 
-  restoreVersion: (entityId, version) =>
+  restoreVersion: (entityId, eventId) =>
     unitOfWork.run(async (context) => {
-      const restored = await historyRepository.restoreVersion(entityId, version, nodeName, context);
+      const restored = await historyRepository.restoreVersion(entityId, eventId, nodeName, context);
       if (!restored) {
-        throw new NotFoundError(ERROR_MESSAGES.ENTITY_BACKUP_NOT_FOUND(entityId, version));
+        throw new NotFoundError(ERROR_MESSAGES.ENTITY_BACKUP_NOT_FOUND(entityId, eventId));
       }
-      logger.info({ entityId, version }, 'Restored entity to an earlier version');
+      logger.info({ entityId, eventId }, 'Restored entity to an earlier version');
     }),
 
-  duplicateFromVersion: (entityId, version, name) =>
+  duplicateFromVersion: (entityId, eventId, name) =>
     unitOfWork.run(async (context) => {
-      const createdId = await historyRepository.duplicateFromVersion(entityId, version, name, nodeName, context);
+      const createdId = await historyRepository.duplicateFromVersion(entityId, eventId, name, nodeName, context);
       if (!createdId) {
-        throw new NotFoundError(ERROR_MESSAGES.ENTITY_BACKUP_NOT_FOUND(entityId, version));
+        throw new NotFoundError(ERROR_MESSAGES.ENTITY_BACKUP_NOT_FOUND(entityId, eventId));
       }
-      logger.info({ entityId, version, createdId }, 'Created a new entity from an earlier version');
+      logger.info({ entityId, eventId, createdId }, 'Created a new entity from an earlier version');
       return createdId;
     }),
 });

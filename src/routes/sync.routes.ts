@@ -8,7 +8,7 @@ import { validate } from 'middlewares/validation.middleware';
 
 const EntityVersionParamsSchema = z.object({
   entityId: z.string().uuid(),
-  version: z.coerce.number().int().positive(),
+  eventId: z.string().uuid(),
 });
 
 const EntityParamsSchema = z.object({

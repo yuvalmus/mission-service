@@ -47,8 +47,8 @@ export const ERROR_MESSAGES = {
     `The parent ${parentId} does not exist as a mission or a stake.`,
   ENTITY_INTEGRITY_VIOLATION: (entityType: string, id: string) =>
     `The ${entityType} ${id} was rejected by the database integrity rules.`,
-  ENTITY_BACKUP_NOT_FOUND: (entityId: string, version: number) =>
-    `No backup of version ${version} exists for entity ${entityId}.`,
+  ENTITY_BACKUP_NOT_FOUND: (entityId: string, eventId: string) =>
+    `No history entry ${eventId} exists for entity ${entityId}.`,
   SYNC_PARENT_REQUIRED: 'parentId is required.',
   SYNC_SINCE_SEQ_INVALID: 'sinceSeq must be a non-negative integer.',
 } as const;

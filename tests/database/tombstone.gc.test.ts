@@ -35,4 +35,14 @@ describe('tombstone collector', () => {
     );
     expect(report.counters).toBe(0);
   });
+
+  it('keeps the newest versions per entity per origin station', async () => {
+    await collector().collectOnce();
+
+    const prune = client.query.mock.calls.find(([sql]) => String(sql).includes('DELETE FROM route_backups'));
+    expect(normalizeSql(prune?.[0] ?? '')).toContain(
+      'PARTITION BY entity_id, origin_node ORDER BY mission_change_seq DESC',
+    );
+    expect(prune?.[1]).toEqual([10]);
+  });
 });

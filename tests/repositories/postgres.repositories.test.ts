@@ -3,6 +3,7 @@ import { PG_ERROR_CODES, PG_TABLES, PG_VIEWS } from 'constants/postgres.constant
 import { ERROR_MESSAGES } from 'constants/error.constants';
 import { BadRequestError } from 'errors/app.errors';
 import { createPostgresEntityRepository } from 'repositories/postgres/entity.repository';
+import { createPostgresHistoryRepository } from 'repositories/postgres/history.repository';
 import { createPostgresMissionRepository } from 'repositories/postgres/mission.repository';
 import { createPostgresStakeRepository } from 'repositories/postgres/stake.repository';
 import { toEntityProperties } from 'mappers/entity-row.mapper';
@@ -11,6 +12,8 @@ import { buildMission, MISSION_ID } from '../fixtures/mission.fixtures';
 import { createPostgresDatabaseMock, NODE_NAME, normalizeSql, PostgresDatabaseMock } from '../fixtures/postgres.fixtures';
 
 const STAKE_ID = '9f8e7d6c-5555-4444-8333-222211110000';
+const ENTITY_ID = '1a2b3c4d-1111-4222-8333-444455556666';
+const EVENT_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 
 const buildLogger = () => ({
   info: jest.fn(),
@@ -41,6 +44,8 @@ describe('postgres repositories', () => {
     createPostgresMissionRepository({ database: mock.value.database, nodeName: NODE_NAME });
 
   const stakeRepository = () => createPostgresStakeRepository({ database: mock.value.database, nodeName: NODE_NAME });
+
+  const historyRepository = () => createPostgresHistoryRepository({ database: mock.value.database });
 
   describe('entity repository', () => {
     it('resolves the parent against both missions and infra so belongs_to_one can hold', async () => {
@@ -209,6 +214,43 @@ describe('postgres repositories', () => {
       expect(normalizeSql(mock.value.lastQuery()?.sql ?? '')).toContain(
         `UPDATE ${PG_TABLES.INFRA} SET version_number = version_number + 1`,
       );
+    });
+  });
+
+  describe('history repository', () => {
+    it('lists every kept version newest first and flags the live one', async () => {
+      await historyRepository().listVersions(ENTITY_ID);
+
+      const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
+      expect(sql).toContain('FROM route_backups b LEFT JOIN entities e ON e.entity_id = b.entity_id');
+      expect(sql).toContain(
+        'COALESCE(e.origin_node = b.origin_node AND e.mission_change_seq = b.mission_change_seq, false) AS is_current',
+      );
+      expect(sql).toContain('ORDER BY b.last_update_time DESC');
+      expect(sql).not.toContain('LIMIT');
+      expect(mock.value.lastQuery()?.values).toEqual([ENTITY_ID]);
+    });
+
+    it("restores by event id and only from that entity's own history", async () => {
+      await historyRepository().restoreVersion(ENTITY_ID, EVENT_ID, NODE_NAME);
+
+      const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
+      expect(sql).toContain('b.entity_id = $1');
+      expect(sql).toContain('b.event_id = $2');
+      expect(mock.value.lastQuery()?.values.slice(0, 2)).toEqual([ENTITY_ID, EVENT_ID]);
+    });
+
+    it('reports nothing restored when the event is not a version of that entity', async () => {
+      expect(await historyRepository().restoreVersion(ENTITY_ID, EVENT_ID, NODE_NAME)).toBe(false);
+    });
+
+    it('duplicates by event id into a fresh uuid', async () => {
+      await historyRepository().duplicateFromVersion(ENTITY_ID, EVENT_ID, null, NODE_NAME);
+
+      const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
+      expect(sql).toContain('gen_random_uuid()');
+      expect(sql).toContain('b.entity_id = $1');
+      expect(sql).toContain('b.event_id = $2');
     });
   });
 });

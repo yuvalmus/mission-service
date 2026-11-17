@@ -55,14 +55,14 @@ const PURGE_COUNTERS = `
 `;
 
 /**
- * Enforcing the ten-version ceiling out here, rather than inside the backup trigger, is deliberate:
+ * Enforcing the ten-version ceiling out here, rather than inside the history trigger, is deliberate:
  * a DELETE in the trigger would add I/O and lock time to every single entity update.
  */
 const PRUNE_BACKUPS = `
   DELETE FROM ${PG_TABLES.ROUTE_BACKUPS} b
-  WHERE b.backup_id IN (
-    SELECT backup_id FROM (
-      SELECT backup_id, ROW_NUMBER() OVER (PARTITION BY route_id ORDER BY version DESC) AS row_rank
+  WHERE b.event_id IN (
+    SELECT event_id FROM (
+      SELECT event_id, ROW_NUMBER() OVER (PARTITION BY entity_id, origin_node ORDER BY mission_change_seq DESC) AS row_rank
       FROM ${PG_TABLES.ROUTE_BACKUPS}
     ) ranked
     WHERE ranked.row_rank > $1

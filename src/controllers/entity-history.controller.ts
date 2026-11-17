@@ -23,15 +23,15 @@ export const createEntityHistoryController = (
 
   restoreVersion: async (req, res) => {
     const entityId = req.params.entityId as string;
-    const version = Number(req.params.version);
-    await historyService.restoreVersion(entityId, version);
-    res.status(HTTP_STATUS.OK).json({ entityId, version });
+    const eventId = req.params.eventId as string;
+    await historyService.restoreVersion(entityId, eventId);
+    res.status(HTTP_STATUS.OK).json({ entityId, eventId });
   },
 
   duplicateFromVersion: async (req, res) => {
     const entityId = req.params.entityId as string;
-    const version = Number(req.params.version);
-    const createdId = await historyService.duplicateFromVersion(entityId, version, readName(req.body));
-    res.status(HTTP_STATUS.CREATED).json({ entityId: createdId, sourceEntityId: entityId, version });
+    const eventId = req.params.eventId as string;
+    const createdId = await historyService.duplicateFromVersion(entityId, eventId, readName(req.body));
+    res.status(HTTP_STATUS.CREATED).json({ entityId: createdId, sourceEntityId: entityId, eventId });
   },
 });

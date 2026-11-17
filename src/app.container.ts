@@ -108,7 +108,6 @@ const createMeshLayer = (
     historyRepository: createPostgresHistoryRepository({ database: postgres }),
     unitOfWork,
     nodeName: env.NODE_NAME,
-    backupLimit: env.ROUTE_BACKUP_LIMIT,
     logger,
   });
 

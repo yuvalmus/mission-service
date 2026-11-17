@@ -10,22 +10,25 @@ const PATHS = {
   RENDER: `${SYNC_ROUTES.ROOT}${SYNC_ROUTES.RENDER_LAYER}`,
   STATUS: `${SYNC_ROUTES.ROOT}${SYNC_ROUTES.STATUS}`,
   HISTORY: `${SYNC_ROUTES.ROOT}/entities/{entityId}/history`,
-  RESTORE: `${SYNC_ROUTES.ROOT}/entities/{entityId}/restore/{version}`,
-  DUPLICATE: `${SYNC_ROUTES.ROOT}/entities/{entityId}/duplicate/{version}`,
+  RESTORE: `${SYNC_ROUTES.ROOT}/entities/{entityId}/restore/{eventId}`,
+  DUPLICATE: `${SYNC_ROUTES.ROOT}/entities/{entityId}/duplicate/{eventId}`,
 } as const;
 
 const parentIdParam = z.string().uuid().openapi({ description: 'Mission id or stake id' });
 
 const EntityVersionDtoSchema = z
   .object({
+    eventId: z.string().uuid(),
     entityId: z.string().uuid(),
     version: z.number().int(),
     entityType: z.string(),
+    originNode: z.string(),
+    changeSeq: z.number().int(),
+    lastUpdateTime: z.coerce.date(),
+    isDeleted: z.boolean(),
+    isCurrent: z.boolean(),
     geometry: z.unknown().nullable(),
     properties: z.record(z.string(), z.unknown()).nullable(),
-    isDeleted: z.boolean(),
-    updatedByNode: z.string().nullable(),
-    createdAt: z.coerce.date(),
   })
   .openapi('EntityVersionDto');
 
@@ -93,7 +96,9 @@ registry.registerPath({
   operationId: 'listEntityVersions',
   tags: [TAGS.SYNC],
   summary: 'Previous versions of an entity',
-  description: 'Up to ten earlier versions, newest first, including states overwritten by a peer.',
+  description:
+    'Every kept version, newest first, from every station — including the losing side of a conflict. ' +
+    '`isCurrent` marks the live one.',
   request: { params: z.object({ entityId: z.string().uuid() }) },
   responses: {
     [HTTP_STATUS.OK]: {
@@ -109,8 +114,8 @@ registry.registerPath({
   operationId: 'restoreEntityVersion',
   tags: [TAGS.SYNC],
   summary: 'Restore an entity to an earlier version',
-  description: 'Applied as a normal update, so the replaced state is itself kept in the history.',
-  request: { params: z.object({ entityId: z.string().uuid(), version: z.coerce.number().int() }) },
+  description: 'Applied as a normal update, so the restore is itself a new version in the history.',
+  request: { params: z.object({ entityId: z.string().uuid(), eventId: z.string().uuid() }) },
   responses: {
     [HTTP_STATUS.OK]: { description: 'Entity restored' },
     [HTTP_STATUS.NOT_FOUND]: { description: 'No such version' },
@@ -124,7 +129,7 @@ registry.registerPath({
   tags: [TAGS.SYNC],
   summary: 'Create a new entity from an earlier version',
   request: {
-    params: z.object({ entityId: z.string().uuid(), version: z.coerce.number().int() }),
+    params: z.object({ entityId: z.string().uuid(), eventId: z.string().uuid() }),
     body: {
       content: {
         'application/json': {

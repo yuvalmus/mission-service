@@ -44,6 +44,7 @@ const buildSpatialIntegrityCheck = (): string => {
 
 export const buildSchemaStatements = (env: Env): string[] => {
   const nodeName = quoteLiteral(env.NODE_NAME);
+  const historyColumns = Object.values(ENTITY_COLUMNS).join(', ');
 
   return [
     `CREATE EXTENSION IF NOT EXISTS ${PG_EXTENSIONS.PGCRYPTO};`,
@@ -110,20 +111,26 @@ export const buildSchemaStatements = (env: Env): string[] => {
         last_seq BIGINT NOT NULL
      );`,
 
-    // Ten versions back per entity, written by the BEFORE UPDATE trigger. Pruning is deliberately
-    // NOT done here — it runs in the background collector so it cannot lengthen a write.
+    // Ten versions back per entity per origin station, written by the history trigger. Pruning is
+    // deliberately NOT done here — it runs in the background collector so it cannot lengthen a write.
     `CREATE TABLE IF NOT EXISTS ${PG_TABLES.ROUTE_BACKUPS} (
-        backup_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        route_id UUID NOT NULL,
-        ${ENTITY_COLUMNS.VERSION} BIGINT NOT NULL,
-        ${ENTITY_COLUMNS.ENTITY_TYPE} TEXT NOT NULL,
+        event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ${ENTITY_COLUMNS.ID} UUID NOT NULL,
         ${ENTITY_COLUMNS.MISSION_ID} UUID,
         ${ENTITY_COLUMNS.INFRA_ID} UUID,
+        ${ENTITY_COLUMNS.PARENT_ENTITY_ID} UUID,
+        ${ENTITY_COLUMNS.ENTITY_TYPE} TEXT NOT NULL,
+        ${ENTITY_COLUMNS.NAME} TEXT,
+        ${ENTITY_COLUMNS.CATEGORY} TEXT,
         ${ENTITY_COLUMNS.GEOM} GEOMETRY(Geometry, ${GEOMETRY.SRID}),
-        ${ENTITY_COLUMNS.PROPERTIES} JSONB,
-        ${ENTITY_COLUMNS.IS_DELETED} BOOLEAN NOT NULL DEFAULT false,
-        updated_by_node TEXT,
-        ${ENTITY_COLUMNS.CREATED_AT} TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        ${ENTITY_COLUMNS.PROPERTIES} JSONB NOT NULL,
+        ${ENTITY_COLUMNS.VERSION} BIGINT NOT NULL,
+        ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ} BIGINT NOT NULL,
+        ${ENTITY_COLUMNS.SCHEMA_VERSION} INTEGER NOT NULL,
+        ${ENTITY_COLUMNS.IS_DELETED} BOOLEAN NOT NULL,
+        ${ENTITY_COLUMNS.CREATED_AT} TIMESTAMPTZ NOT NULL,
+        ${ENTITY_COLUMNS.LAST_UPDATE_TIME} TIMESTAMPTZ NOT NULL,
+        ${ENTITY_COLUMNS.ORIGIN_NODE} TEXT NOT NULL
      );`,
 
     // --- Indexes ---------------------------------------------------------------------------
@@ -134,7 +141,9 @@ export const buildSchemaStatements = (env: Env): string[] => {
     `CREATE INDEX IF NOT EXISTS idx_entities_infra_name ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.INFRA_ID}, ${ENTITY_COLUMNS.NAME});`,
     `CREATE INDEX IF NOT EXISTS idx_entities_type ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.ENTITY_TYPE});`,
     `CREATE INDEX IF NOT EXISTS idx_entities_tombstones ON ${PG_TABLES.ENTITIES} (${ENTITY_COLUMNS.LAST_UPDATE_TIME}) WHERE ${ENTITY_COLUMNS.IS_DELETED};`,
-    `CREATE INDEX IF NOT EXISTS idx_route_backups_route_ver ON ${PG_TABLES.ROUTE_BACKUPS} (route_id, ${ENTITY_COLUMNS.VERSION} DESC);`,
+    `CREATE INDEX IF NOT EXISTS idx_route_backups_entity_time ON ${PG_TABLES.ROUTE_BACKUPS} (${ENTITY_COLUMNS.ID}, ${ENTITY_COLUMNS.LAST_UPDATE_TIME} DESC);`,
+    `CREATE INDEX IF NOT EXISTS idx_route_backups_mission_seq ON ${PG_TABLES.ROUTE_BACKUPS} (${ENTITY_COLUMNS.MISSION_ID}, ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ} DESC);`,
+    `CREATE INDEX IF NOT EXISTS idx_route_backups_entity_origin_seq ON ${PG_TABLES.ROUTE_BACKUPS} (${ENTITY_COLUMNS.ID}, ${ENTITY_COLUMNS.ORIGIN_NODE}, ${ENTITY_COLUMNS.MISSION_CHANGE_SEQ} DESC);`,
     `CREATE INDEX IF NOT EXISTS idx_missions_name ON ${PG_TABLES.MISSIONS} (name);`,
     `CREATE INDEX IF NOT EXISTS idx_infra_squadron ON ${PG_TABLES.INFRA} (squadron);`,
 
@@ -209,31 +218,22 @@ export const buildSchemaStatements = (env: Env): string[] => {
        BEFORE INSERT OR UPDATE ON ${PG_TABLES.INFRA}
        FOR EACH ROW EXECUTE FUNCTION ${PG_FUNCTIONS.STAMP_ORIGIN_NODE}();`,
 
-    // --- History backup ----------------------------------------------------------------------
-    // Last-Write-Wins means an incoming replicated row overwrites the local one. The row that was
-    // about to be overwritten is copied here first, so LWW never destroys information — including
-    // when the overwrite arrives from the peer after a disconnection.
-    `CREATE OR REPLACE FUNCTION ${PG_FUNCTIONS.BACKUP_ENTITY_VERSION}() RETURNS trigger AS $$
+    // --- History ------------------------------------------------------------------------------
+    // Every version is filed on the station that wrote it, before any conflict can exist, and the
+    // history replicates. A row that later loses Last-Write-Wins therefore still reaches every
+    // station's history.
+    `CREATE OR REPLACE FUNCTION ${PG_FUNCTIONS.RECORD_ENTITY_VERSION}() RETURNS trigger AS $$
      BEGIN
-       INSERT INTO ${PG_TABLES.ROUTE_BACKUPS} (
-         route_id, ${ENTITY_COLUMNS.VERSION}, ${ENTITY_COLUMNS.ENTITY_TYPE},
-         ${ENTITY_COLUMNS.MISSION_ID}, ${ENTITY_COLUMNS.INFRA_ID},
-         ${ENTITY_COLUMNS.GEOM}, ${ENTITY_COLUMNS.PROPERTIES},
-         ${ENTITY_COLUMNS.IS_DELETED}, updated_by_node, ${ENTITY_COLUMNS.CREATED_AT}
-       ) VALUES (
-         OLD.${ENTITY_COLUMNS.ID}, OLD.${ENTITY_COLUMNS.VERSION}, OLD.${ENTITY_COLUMNS.ENTITY_TYPE},
-         OLD.${ENTITY_COLUMNS.MISSION_ID}, OLD.${ENTITY_COLUMNS.INFRA_ID},
-         OLD.${ENTITY_COLUMNS.GEOM}, OLD.${ENTITY_COLUMNS.PROPERTIES},
-         OLD.${ENTITY_COLUMNS.IS_DELETED}, OLD.${ENTITY_COLUMNS.ORIGIN_NODE}, OLD.${ENTITY_COLUMNS.LAST_UPDATE_TIME}
-       );
+       INSERT INTO ${PG_TABLES.ROUTE_BACKUPS} (${historyColumns})
+       VALUES (${historyColumns.split(', ').map((column) => `NEW.${column}`).join(', ')});
        RETURN NEW;
      END;
      $$ LANGUAGE plpgsql;`,
 
-    `DROP TRIGGER IF EXISTS ${PG_TRIGGERS.ENTITY_BACKUP} ON ${PG_TABLES.ENTITIES};`,
-    `CREATE TRIGGER ${PG_TRIGGERS.ENTITY_BACKUP}
-       BEFORE UPDATE ON ${PG_TABLES.ENTITIES}
-       FOR EACH ROW EXECUTE FUNCTION ${PG_FUNCTIONS.BACKUP_ENTITY_VERSION}();`,
+    `DROP TRIGGER IF EXISTS ${PG_TRIGGERS.ENTITY_HISTORY} ON ${PG_TABLES.ENTITIES};`,
+    `CREATE TRIGGER ${PG_TRIGGERS.ENTITY_HISTORY}
+       AFTER INSERT OR UPDATE ON ${PG_TABLES.ENTITIES}
+       FOR EACH ROW EXECUTE FUNCTION ${PG_FUNCTIONS.RECORD_ENTITY_VERSION}();`,
 
     // --- Change notification -----------------------------------------------------------------
     // Identifiers and versions only. pg_notify caps a payload at 8KB, so geometry and properties
@@ -294,16 +294,11 @@ export const buildSchemaStatements = (env: Env): string[] => {
        FOR EACH ROW EXECUTE FUNCTION ${PG_FUNCTIONS.NOTIFY_MISSION_CHANGE}();`,
 
     // ENABLE ALWAYS makes a trigger fire for rows applied by pglogical too, not just local writes.
+    // Notify needs it: a change made on a peer must still reach this station's UI.
     //
-    //  - notify: a change made on the peer must still reach this station's UI.
-    //  - backup: this is what makes Last-Write-Wins non-destructive. When a peer returning from a
-    //    disconnection overwrites a row that was edited locally, the trigger runs on the receiving
-    //    station and files the losing local row into the history before it is replaced.
-    //
-    // The metadata trigger stays origin-only by design: a replicated row must keep the version and
-    // sequence its author assigned, or the two stations would disagree about what a change is.
+    // The metadata and history triggers stay origin-only by design: a replicated row must keep the
+    // version and sequence its author assigned, and its history row arrives through replication.
     `ALTER TABLE ${PG_TABLES.ENTITIES} ENABLE ALWAYS TRIGGER ${PG_TRIGGERS.ENTITY_NOTIFY};`,
-    `ALTER TABLE ${PG_TABLES.ENTITIES} ENABLE ALWAYS TRIGGER ${PG_TRIGGERS.ENTITY_BACKUP};`,
     `ALTER TABLE ${PG_TABLES.MISSIONS} ENABLE ALWAYS TRIGGER ${PG_TRIGGERS.MISSION_NOTIFY};`,
 
     // --- Views -------------------------------------------------------------------------------
