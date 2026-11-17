@@ -58,14 +58,11 @@ docs follow automatically.
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `mesh` / `mesh_pass` / `meshdb` |                                                        |
 | `POSTGRES_POOL_MAX`                                   | `5`                             |                                                        |
 | `NODE_NAME`                                           | `node-a`                        | Stamped on every row as `origin_node`                  |
-| `PEER_NODE_NAME`                                      | `node-b`                        |                                                        |
-| `PEER_POSTGRES_HOST`                                  | _(unset)_                       | Unset ⇒ single station, no replication                 |
-| `PEER_POSTGRES_PORT`                                  | `5432`                          | Used only by the replication worker                    |
-| `MESH_NODE_INDEX` / `MESH_NODE_COUNT`                 | `1` / `2`                       | Interleaves change sequences across stations           |
+| `MESH_PEERS`                                          | _(empty)_                       | `name@host:port,…`, at most 2; empty ⇒ single station  |
 | `NATS_URL`                                            | `nats://localhost:4222`         | Used by the Bridge process                             |
 | `TOMBSTONE_RETENTION_MINUTES`                         | `10`                            | How long a deleted row is kept before physical removal |
 | `GC_INTERVAL_SECONDS`                                 | `120`                           | Background collector cadence                           |
-| `ROUTE_BACKUP_LIMIT`                                  | `10`                            | Versions kept per entity                               |
+| `ROUTE_BACKUP_LIMIT`                                  | `10`                            | Versions kept per entity per origin station            |
 
 Env vars are validated by Zod on boot — a bad value fails fast with a clear message.
 
@@ -122,7 +119,7 @@ src/
 ├── docs/                # OpenAPI path registrations
 └── utils/               # logger, name generator, geo, category helpers
 tests/                   # mirrors src/, plus tests/fixtures/ for shared mocks
-deploy/                  # PostGIS+pglogical image, NATS leaf configs, two-station compose
+deploy/                  # PostGIS+pglogical image, NATS leaf configs, one-to-three-station compose
 schema/asyncapi.yaml     # NATS message contract
 ```
 
@@ -137,8 +134,8 @@ its mappers, then add one registry entry — routes, validation, docs and Swagge
 
 ## The mesh: PostgreSQL + pglogical + NATS
 
-`STATION=Edge` runs the service as one station of a peer-to-peer mesh. Two stations each hold a
-complete local database and converge in the background. The design constraint behind every choice
+`STATION=Edge` runs the service as one station of a peer-to-peer mesh. One to three stations each
+hold a complete local database and converge in the background. The design constraint behind every choice
 below is **last survivor**: a station must keep accepting reads and writes when it is the only one
 left, so no mechanism may need a quorum.
 
@@ -149,8 +146,8 @@ operator edits an entity
           │
           ▼
   ┌───────────────────┐   one transaction
-  │  UPDATE entities  │   ─ backup trigger files the previous version
-  │                   │   ─ metadata trigger bumps version + change sequence
+  │  UPDATE entities  │   ─ metadata trigger bumps version + per-parent number
+  │                   │   ─ history trigger files the new version
   │                   │   ─ notify trigger raises pg_notify
   └─────────┬─────────┘
             │ COMMIT
@@ -159,7 +156,7 @@ operator edits an entity
 pglogical          Bridge (separate process)
    │                  │  LISTEN → publish
    ▼                  ▼
-peer database      NATS JetStream ──mirror──► peer's NATS
+peer databases     NATS JetStream ──mirrors──► peers' NATS
                       │
                       ▼
                    client: "entity X changed" → GET /sync/entities/delta
@@ -173,7 +170,7 @@ maps quietly disagreeing with the database.
 
 | Decision                                     | Reason                                                                                                                                 |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pglogical`, not a Postgres cluster          | Clusters need a majority to accept a write. With two stations, losing one would leave the survivor read-only.                          |
+| `pglogical`, not a Postgres cluster          | Clusters need a majority to accept a write. With two or three stations, losing a majority leaves the survivor read-only.               |
 | NATS **leaf nodes**, not clustered JetStream | Clustered JetStream elects a leader by Raft — same quorum problem. A leaf node owns its own domain and keeps accepting messages alone. |
 | UUID v4 keys, never `SERIAL`                 | Two disconnected stations must be able to mint rows that can never collide.                                                            |
 | Tombstones instead of `DELETE`               | A row that simply vanished cannot be reported by the delta feed, so a peer would keep drawing it.                                      |
@@ -183,38 +180,46 @@ maps quietly disagreeing with the database.
 
 ### Delta sync
 
-Every write takes the next value of the station's change sequence. A client keeps the highest
-sequence it has processed and asks for what came after it, so only the entities that actually
-moved cross the LAN.
+Every write takes the next number from its station's counter for the parent (`change_counters`, a
+local table that is never replicated). Numbers are gap-free per parent per station, and a replicated
+row keeps the number its author gave it, so `(origin_node, mission_change_seq)` names one version on
+every station.
 
-Sequences are **interleaved** across stations — station 1 emits 1, 3, 5…, station 2 emits 2, 4,
-6…, set by `MESH_NODE_INDEX` / `MESH_NODE_COUNT`. Without that, two stations writing while
-disconnected would hand the same number to different entities and a reconnecting client could skip
-one. Gaps within a single mission are expected and harmless.
+A client keeps a **clock**: the highest number it has seen from each station, for example
+`{"station-a":10,"station-b":4}`. It asks for what came after it, so only the entities that actually
+moved cross the LAN. If nothing did, the answer is `304 Not Modified`.
 
-| Endpoint                                              | Purpose                                                                             |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `GET /sync/entities/delta?parentId=&sinceSeq=&limit=` | What changed since a sequence; returns `nextSeq` to resume from                     |
-| `GET /sync/entities/render?parentId=`                 | Full snapshot with geometry as GeoJSON and render defaults injected by the database |
-| `GET /sync/status?parentId=`                          | This station's high-water mark and entity count                                     |
-| `GET /sync/entities/:entityId/history`                | Up to ten previous versions                                                         |
-| `POST /sync/entities/:entityId/restore/:version`      | Reinstate a version (itself an ordinary, replicated update)                         |
-| `POST /sync/entities/:entityId/duplicate/:version`    | Create a new entity from an old version                                             |
+**Keep the clock the server returns** and send it back on the next call. Never rebuild it from the
+entities you hold: an entity overwritten by another station would lower the rebuilt value and cause
+re-downloads.
+
+| Endpoint                                            | Purpose                                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /sync/entities/delta?parentId=&clock=&limit=`  | What changed since a clock (JSON); returns the raised `clock`, or `304` if nothing    |
+| `GET /sync/entities/render?parentId=`               | Full snapshot with GeoJSON and render defaults, plus the `clock` to start polling from |
+| `GET /sync/status?parentId=`                        | This station's clock and entity count                                                 |
+| `GET /sync/entities/:entityId/history`              | Every kept version from every station, newest first; `isCurrent` marks the live one   |
+| `POST /sync/entities/:entityId/restore/:eventId`    | Reinstate a version (itself an ordinary, replicated update)                           |
+| `POST /sync/entities/:entityId/duplicate/:eventId`  | Create a new entity from an old version                                               |
 
 These routes exist only on the Edge station. The NATS message contract is documented separately in
 [`schema/asyncapi.yaml`](schema/asyncapi.yaml).
 
 ### Last-Write-Wins without losing data
 
-When both stations edit the same row while disconnected, pglogical keeps the write with the later
-commit timestamp on both sides (`pglogical.conflict_resolution = last_update_wins`, which needs
-`track_commit_timestamp = on`). `route_backups` is what stops the discarded write from being a loss:
-a `BEFORE UPDATE` trigger files the row about to be replaced, and because that trigger is
-`ENABLE ALWAYS` it also runs when the overwrite arrives _from the peer_. The losing version is kept
-on the station where it was written.
+When two stations edit the same row while disconnected, pglogical keeps the write with the later
+commit timestamp everywhere (`pglogical.conflict_resolution = last_update_wins`, which needs
+`track_commit_timestamp = on`). `route_backups` is what stops the discarded write from being a loss.
+An origin-only `AFTER INSERT OR UPDATE` trigger files every new version on the station that wrote
+it, before any conflict exists, and `route_backups` replicates like the entities do. The entity row
+and its history row commit together, and pglogical resolves conflicts per row, so a losing entity
+row still delivers its history row. Every station ends up with both versions, and an operator can
+restore either one by its `eventId`.
 
-`route_backups` is deliberately **not** replicated — it is each station's record of what was
-overwritten locally.
+History rows are keyed by a fresh `event_id`, so they never conflict. The collector keeps the newest
+`ROUTE_BACKUP_LIMIT` versions per entity **per origin station**, so fifteen edits on one station
+cannot push out the single losing edit from another. The history of an entity the collector has
+purged stays until the session reset: restoring it answers 404, duplicating it still works.
 
 ### Who publishes what
 
@@ -225,16 +230,30 @@ forget it. Two things key off it:
 - **Replication.** Each station's replication set carries a pglogical row filter
   `origin_node = '<this station>'`: a station publishes only rows it wrote last, and can never be
   sent its own rows back. Editing a row the peer created makes it yours to publish.
-- **Events.** The Bridge publishes only changes authored on its own station; the peer's changes
-  arrive through the NATS mirror, so every event is published exactly once.
+- **Events.** The Bridge publishes only changes authored on its own station; each peer's changes
+  arrive through that peer's NATS mirror, so every event is published exactly once.
+- **Reload pulses.** LISTEN/NOTIFY is not durable, so after NATS or the Bridge has been down the
+  Bridge compares each parent's local counter with the last number on that parent's subject in its
+  stream. Where the stream is behind it publishes one `{"type":"reload", parentId, originNode,
+  lastChangeSeq}` for the parent, and the client answers with a delta call. This runs at start, on
+  every NATS reconnect, and after a failed publish, retried from 1 s doubling to 30 s. Mission
+  lifecycle messages missed during an outage are not refilled; clients re-list missions on
+  reconnect.
 
 Physical `DELETE`s are not replicated. The only ones this service issues come from the tombstone
 collector, which every station runs for itself on the same retention window.
 
-### Running two stations
+### Running three stations
 
 ```bash
 docker network create mesh-net
+```
+
+Volumes from an older build must be recreated first — the schema changed and data is
+session-scoped, so there is no migration. Repeat for `station-b` and `station-c`:
+
+```bash
+cat deploy/shared.env deploy/station-a/values.env > deploy/.env && docker compose -p station-a -f deploy/docker-compose.yml down -v
 ```
 
 ```bash
@@ -245,8 +264,17 @@ cat deploy/shared.env deploy/station-a/values.env > deploy/.env && docker compos
 cat deploy/shared.env deploy/station-b/values.env > deploy/.env && docker compose -p station-b -f deploy/docker-compose.yml up -d --build
 ```
 
-Station A serves on `:5001`, station B on `:5002`. Each runs its own PostgreSQL, NATS and Bridge.
-Stop either one: the other keeps serving, and the gap closes on its own when it returns.
+```bash
+cat deploy/shared.env deploy/station-c/values.env > deploy/.env && docker compose -p station-c -f deploy/docker-compose.yml up -d --build
+```
+
+Station A serves on `:5001`, B on `:5002`, C on `:5003`. Each runs its own PostgreSQL, NATS and
+Bridge, and lists the other two in `MESH_PEERS`. Stop any one: the others keep serving, and the gap
+closes on its own when it returns. For two stations, drop the third from each `MESH_PEERS`.
+
+NATS leaf nodes cannot form a loop, so the links form a tree: `nats-b` dials A, and `nats-c` dials A
+or, when A is down, B — one remote with two URLs. If A goes down, C fails over to B, and every set
+of links is still a tree.
 
 Each station has a private network for its service and Bridge; only PostgreSQL and NATS are also
 attached to the shared `mesh-net`. To simulate losing the link between stations:
@@ -259,7 +287,7 @@ docker network disconnect mesh-net station-b-postgres && docker network disconne
 docker network connect mesh-net station-b-postgres && docker network connect mesh-net station-b-nats
 ```
 
-Each station's JetStream `domain` in `deploy/nats/` must equal its `NODE_NAME` — the peer's mirror
+Each station's JetStream `domain` in `deploy/nats/` must equal its `NODE_NAME` — each peer's mirror
 addresses it as `$JS.<NODE_NAME>.API`.
 
 The database image is built from `deploy/postgres/` with PostGIS and pglogical compiled in rather
@@ -275,25 +303,43 @@ Points where this implementation departs from the architecture documents or the 
    from `ENTITY_GEOMETRY_KINDS` so it cannot drift from the projection code.
 2. **`route` stores no geometry.** It is defined by the waypoint ids it references, so `geom` is
    `NULL` and the shape is drawn from those waypoints.
-3. **Global sequence, not a per-mission counter.** The reference demo increments a counter on the
-   `missions` row; the later design notes replace it with `nextval()` on a global sequence
-   explicitly to avoid row locks and deadlocks. This follows the later notes.
-4. **No CHECK on values inside `properties`.** The reference suggests enforcing e.g. a positive
+3. **No CHECK on values inside `properties`.** The reference suggests enforcing e.g. a positive
    radius, but also requires that payload changes never fail a load. Structural rules are enforced
    in the database; value rules stay in the Zod DTOs, where a violation is a 400 rather than a
    stalled replication worker.
 
-The following were found by running two live stations, and are corrections to the reference demo's
+The three-station design notes (2026-09-23) are followed with these departures:
+
+4. **The history logs each new version where it is written**, not the old version on overwrite. The
+   notes' origin-only trigger on the overwritten row never runs on the receiving station, so the
+   loser of a conflict would not be kept. Logging the new version at its origin keeps it.
+5. **The change counter is per parent per station, in a local table** (`change_counters`), not
+   `missions.last_change_seq`. A counter on a replicated row is overwritten by peers and can go
+   backwards; it also skips stakes. The local counter cannot go backwards and covers both parents.
+6. **Every row of a batch update gets its own number.** That is how `FOR EACH ROW` triggers behave,
+   and it is harmless.
+7. **Pruning keeps the last N versions per entity per station**, so a burst of edits on one station
+   cannot evict the losing edit from another.
+8. **No `CLUSTER_NODES` KV bucket.** The notes allow "KV or the last value on the stream"; the last
+   message per subject on each stream and mirror already holds each station's latest number per
+   parent.
+9. **Restore and duplicate go by `eventId`**, not by version, because two stations can both make
+   version 5 of an entity.
+
+The earlier deviation "global sequence, not a per-mission counter" is withdrawn: the per-station
+counter replaces it, and the interleaving settings `MESH_NODE_INDEX` / `MESH_NODE_COUNT` are gone.
+
+The following were found by running live stations, and are corrections to the reference demo's
 configuration rather than design choices:
 
-5. **Last-Write-Wins is configured explicitly.** The demo never sets a conflict policy, so pglogical
+10. **Last-Write-Wins is configured explicitly.** The demo never sets a conflict policy, so pglogical
    uses its default, `apply_remote`. On a concurrent offline edit each station then applies the
    other's version: the two databases swap values and stay diverged permanently.
-6. **Each station replicates only its own rows.** The demo subscribes both ways with
+11. **Each station replicates only its own rows.** The demo subscribes both ways with
    `synchronize_data := true` and no filter. As soon as one station has data before the other
    joins — the normal "last survivor" case — the second subscription's initial copy tries to insert
    the first station's own rows back into it and the apply worker dies on duplicate keys.
-7. **pglogical is added to `output_plugin_libraries`.** Current PostgreSQL 16 builds only let
+12. **pglogical is added to `output_plugin_libraries`.** Current PostgreSQL 16 builds only let
    allow-listed libraries act as logical-decoding output plugins; without this every subscription
    fails with _"may not be used as an output plugin"_. Set at cluster init, and only when the server
    has the setting, so older builds still start.
