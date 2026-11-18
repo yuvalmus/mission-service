@@ -28,6 +28,14 @@ const SUBSCRIPTION_STATUS = {
   DOWN: 'down',
 } as const;
 
+const SYNC_STATUS = {
+  READY: 'r',
+  INIT: 'i',
+  CATCHUP: 'u',
+} as const;
+
+const RESUMABLE_SYNC_STATUSES: string[] = Object.values(SYNC_STATUS);
+
 /** pglogical node names are SQL identifiers, so a hostname-style name has to be normalised. */
 const toIdentifier = (value: string): string => value.replace(/-/g, '_');
 
@@ -163,10 +171,25 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
     return result.rows[0]?.status;
   };
 
+  const readSyncStatus = async (client: PoolClient, subscriptionName: string): Promise<string | undefined> => {
+    const result = await client.query<{ status: string }>(
+      `SELECT l.sync_status::text AS status
+       FROM pglogical.local_sync_status l
+       JOIN pglogical.subscription s ON s.sub_id = l.sync_subid
+       WHERE s.sub_name = $1 AND l.sync_relname IS NULL`,
+      [subscriptionName],
+    );
+    return result.rows[0]?.status;
+  };
+
+  const isStuckInFirstCopy = async (client: PoolClient, subscriptionName: string): Promise<boolean> =>
+    (await readSubscriptionStatus(client, subscriptionName)) === SUBSCRIPTION_STATUS.DOWN &&
+    !RESUMABLE_SYNC_STATUSES.includes((await readSyncStatus(client, subscriptionName)) ?? SYNC_STATUS.READY);
+
   /**
    * Subscribing to the peer is expected to fail while the peer is down, and that is not an error
    * condition: a station must come up and serve reads and writes whether or not anyone else is
-   * reachable. The attempt simply repeats until it succeeds.
+   * reachable. The check repeats for as long as the service runs.
    *
    * `forward_origins := '{}'` keeps a change from being echoed back to the station that made it.
    */
@@ -179,6 +202,15 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
       const existing = await client.query('SELECT 1 FROM pglogical.subscription WHERE sub_name = $1', [
         subscriptionName,
       ]);
+
+      if (existing.rowCount && (await isStuckInFirstCopy(client, subscriptionName))) {
+        await client.query('SELECT pglogical.drop_subscription(subscription_name := $1)', [subscriptionName]);
+        logger.warn(
+          { subscription: subscriptionName, peer: peer.name },
+          'First copy from the peer failed; subscription dropped to copy again',
+        );
+        return false;
+      }
 
       if (!existing.rowCount) {
         await client.query(
@@ -196,26 +228,18 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
       }
 
       const status = await readSubscriptionStatus(client, subscriptionName);
-      if (!status || status === SUBSCRIPTION_STATUS.DOWN) {
-        logger.warn({ subscription: subscriptionName, status }, 'pglogical subscription is not healthy yet');
-        return false;
-      }
-
-      return true;
+      return status !== undefined && status !== SUBSCRIPTION_STATUS.DOWN;
     });
 
-  const scheduleRetry = (peer: MeshPeer): void => {
+  const watch = (peer: MeshPeer, wasHealthy: boolean): void => {
     const handle = setTimeout(async () => {
-      try {
-        if (await attemptSubscription(peer)) {
-          logger.info({ peer: peer.name }, 'pglogical subscription established');
-          timers.delete(peer.name);
-          return;
-        }
-      } catch (error) {
+      const healthy = await attemptSubscription(peer).catch((error: unknown) => {
         logger.warn({ peer: peer.name, reason: describeReplicationError(error) }, 'pglogical subscription retry failed');
-      }
-      if (timers.has(peer.name)) scheduleRetry(peer);
+        return false;
+      });
+      if (healthy && !wasHealthy) logger.info({ peer: peer.name }, 'pglogical subscription established');
+      if (!healthy && wasHealthy) logger.warn({ peer: peer.name }, 'pglogical subscription is not healthy');
+      if (timers.has(peer.name)) watch(peer, healthy);
     }, RETRY_INTERVAL_MS);
 
     handle.unref?.();
@@ -232,14 +256,13 @@ export const createPglogicalMesh = ({ pool, env, logger }: PglogicalSetupDeps): 
 
     if (established) {
       logger.info({ peer: peer.name }, 'pglogical subscription verified');
-      return;
+    } else {
+      logger.info(
+        { peer: peer.name, retrySeconds: RETRY_INTERVAL_MS / 1000 },
+        'Peer unreachable — will keep retrying in background',
+      );
     }
-
-    logger.info(
-      { peer: peer.name, retrySeconds: RETRY_INTERVAL_MS / 1000 },
-      'Peer unreachable — will keep retrying in background',
-    );
-    scheduleRetry(peer);
+    watch(peer, established);
   };
 
   return {

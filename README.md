@@ -360,6 +360,18 @@ is enabled for replication only (`ENABLE REPLICA`), so the service's own writes 
 Masking a mission now also stamps `last_update_time`, so a mission deleted during that gap wins
 too. Like Last-Write-Wins, this relies on the stations' clocks agreeing.
 
+**A first copy cut off halfway is started again.** If the link drops while a station is still
+copying from a peer for the first time, pglogical marks the subscription as failed in a step it
+cannot resume, and never retries it. The service checks every peer subscription every 15 seconds
+for as long as it runs. When a subscription is `down` and its first copy never finished, the service
+drops it and creates it again on the next check, which starts a fresh copy. pglogical copies all
+tables of a subscription in one transaction, so a failed copy leaves nothing behind, and rows
+already received from other peers are handled by the trigger above. A subscription that is `down`
+after its copy finished is a normal cut link and is left for pglogical to resume. If the peer is
+unreachable when the subscription is dropped, its replication slot stays on the peer until the
+subscription is created again, which reuses it. Measured on Docker with 400,000 rows, the copy
+finished 12–46 s after the link came back.
+
 **Known limit with three stations: an edit that arrives before its create is dropped.** Each
 station sends only the rows it wrote last, and a station applies each peer's stream on its own. If
 station C is away while B creates an entity and A then edits it, C may receive A's edit before B's
