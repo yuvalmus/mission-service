@@ -20,7 +20,8 @@
       "controllers/*": ["src/controllers/*"],
       "routes/*": ["src/routes/*"],
       "docs/*": ["src/docs/*"],
-      "utils/*": ["src/utils/*"]
+      "utils/*": ["src/utils/*"],
+      "bridge/*": ["src/bridge/*"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,

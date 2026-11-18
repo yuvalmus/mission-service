@@ -6,7 +6,10 @@ export const SERVICE = {
 export const STATIONS = {
   GROUND: 'Ground',
   AIR: 'Air',
+  EDGE: 'Edge',
 } as const;
+
+export type Station = (typeof STATIONS)[keyof typeof STATIONS];
 
 export const COLLECTIONS = {
   MISSIONS: 'missions',
@@ -30,6 +33,7 @@ export const ROUTES = {
   ENTITIES: '/entities',
   STAKES: '/stakes',
   NAMES: '/names',
+  SYNC: '/sync',
   DOCS: '/docs',
   HEALTHZ: '/healthz',
   READYZ: '/readyz',

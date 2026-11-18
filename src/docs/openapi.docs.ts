@@ -5,6 +5,7 @@ import 'docs/mission.docs';
 import 'docs/health.docs';
 import 'docs/entity.docs';
 import 'docs/stake.docs';
+import 'docs/sync.docs';
 import { readFileSync } from 'fs';
 import { join } from 'node:path';
 
@@ -18,7 +19,7 @@ const readPackageInfo = (): PackageInfo =>
 
 const OPENAPI_INFO = {
   OPENAPI_VERSION: '3.0.0',
-  DESCRIPTION: 'A service for managing Missions and Entities'
+  DESCRIPTION: 'A service for managing Missions and Entities',
 } as const;
 
 export const generateOpenApiDocument = () => {
@@ -29,7 +30,7 @@ export const generateOpenApiDocument = () => {
     info: {
       title: SERVICE.TITLE,
       version: packageInfo.version,
-      description: packageInfo.description || OPENAPI_INFO.DESCRIPTION
-    }
+      description: packageInfo.description || OPENAPI_INFO.DESCRIPTION,
+    },
   });
 };

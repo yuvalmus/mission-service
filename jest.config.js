@@ -20,7 +20,8 @@ module.exports = {
     '^controllers/(.*)$': '<rootDir>/src/controllers/$1',
     '^routes/(.*)$': '<rootDir>/src/routes/$1',
     '^docs/(.*)$': '<rootDir>/src/docs/$1',
-    '^utils/(.*)$': '<rootDir>/src/utils/$1'
+    '^utils/(.*)$': '<rootDir>/src/utils/$1',
+    '^bridge/(.*)$': '<rootDir>/src/bridge/$1'
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/index.ts']
 };

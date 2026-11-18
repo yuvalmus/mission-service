@@ -10,6 +10,7 @@ import { createEntityDeleterRoutes } from 'routes/entity.deleter.routes';
 import { createEntityRetrieverRoutes } from 'routes/entity.retriever.routes';
 import { createNamesRoutes } from 'routes/entity.names.generator.routes';
 import { createStakeRoutes } from 'routes/stake.routes';
+import { createSyncRoutes } from './sync.routes';
 
 export const createAppRoutes = (container: AppContainer): Router => {
   const router = Router();
@@ -29,12 +30,17 @@ export const createAppRoutes = (container: AppContainer): Router => {
   router.use(ROUTES.DELETE, deleterRoutes);
   router.use(ROUTES.DELETE_STAKE, deleterRoutes);
 
-  router.use(
-    ROUTES.ENTITIES,
-    createEntityRetrieverRoutes(container.entityRetrieverController)
-  );
+  router.use(ROUTES.ENTITIES, createEntityRetrieverRoutes(container.entityRetrieverController));
   router.use(ROUTES.NAMES, createNamesRoutes(container.defaultNamesController));
   router.use(ROUTES.STAKES, createStakeRoutes(container.stakeController));
+
+  if (container.syncController && container.entityHistoryController) {
+    router.use(
+      ROUTES.SYNC,
+      createSyncRoutes(container.syncController, container.entityHistoryController),
+    );
+  }
+
   router.use(ROUTES.DOCS, createDocsRoutes());
 
   return router;
