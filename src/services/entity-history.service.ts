@@ -1,22 +1,10 @@
 import { ERROR_MESSAGES } from 'constants/error.constants';
 import { UnitOfWork } from 'database/database.types';
 import { NotFoundError } from 'errors/app.errors';
-import { EntityVersionRow, HistoryRepository } from 'repositories/postgres/history.repository';
+import { EntityVersionDto } from 'dtos/sync.dtos';
+import { toEntityVersionDto } from 'mappers/entity-history.mapper';
+import { HistoryRepository } from 'repositories/postgres/history.repository';
 import { AppLogger } from 'utils/logger.util';
-
-export interface EntityVersionDto {
-  eventId: string;
-  entityId: string;
-  version: number;
-  entityType: string;
-  originNode: string;
-  changeSeq: number;
-  lastUpdateTime: Date;
-  isDeleted: boolean;
-  isCurrent: boolean;
-  geometry: unknown | null;
-  properties: Record<string, unknown> | null;
-}
 
 export interface EntityHistoryService {
   listVersions(entityId: string): Promise<EntityVersionDto[]>;
@@ -30,20 +18,6 @@ export interface EntityHistoryServiceDeps {
   nodeName: string;
   logger: AppLogger;
 }
-
-const toDto = (row: EntityVersionRow): EntityVersionDto => ({
-  eventId: row.event_id,
-  entityId: row.entity_id,
-  version: Number(row.version),
-  entityType: row.entity_type,
-  originNode: row.origin_node,
-  changeSeq: Number(row.mission_change_seq),
-  lastUpdateTime: row.last_update_time,
-  isDeleted: row.is_deleted,
-  isCurrent: row.is_current,
-  geometry: row.geometry ?? null,
-  properties: row.properties,
-});
 
 /**
  * Version history for entities.
@@ -60,7 +34,7 @@ export const createEntityHistoryService = ({
 }: EntityHistoryServiceDeps): EntityHistoryService => ({
   listVersions: async (entityId) => {
     const rows = await historyRepository.listVersions(entityId);
-    return rows.map(toDto);
+    return rows.map(toEntityVersionDto);
   },
 
   restoreVersion: (entityId, eventId) =>

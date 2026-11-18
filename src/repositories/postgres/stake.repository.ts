@@ -3,19 +3,13 @@ import { PG_TABLES } from 'constants/postgres.constants';
 import { TransactionContext } from 'database/database.types';
 import { PostgresDatabase } from 'database/postgres.database';
 import { DatabaseOperationError } from 'errors/app.errors';
-import { Patrick, Stake, STAKE_CONSTANTS } from 'models/stake.models';
+import { InfraRow, toStake } from 'mappers/stake-row.mapper';
 import { StakeRepository } from 'repositories/stake.repository.interface';
 import { isUuid } from 'utils/sql.util';
 
 export interface PostgresStakeRepositoryDeps {
   database: PostgresDatabase;
   nodeName: string;
-}
-
-export interface InfraRow {
-  id: string;
-  squadron: string;
-  version_number: number;
 }
 
 /**
@@ -28,12 +22,6 @@ export interface InfraRow {
 const INFRA_PROJECTION = 'id, squadron, version_number';
 
 const ACTIVE_ONLY = 'deleted_at IS NULL';
-
-const toDomain = (row: InfraRow): Stake => ({
-  id: row.id,
-  patrickName: row.squadron as Patrick,
-  versionNumber: row.version_number ?? STAKE_CONSTANTS.BASE_VERSION_NUMBER,
-});
 
 const INSERT_INFRA = `
   INSERT INTO ${PG_TABLES.INFRA} (id, squadron, version_number, origin_node)
@@ -100,12 +88,12 @@ export const createPostgresStakeRepository = ({
     findById: async (id) => {
       if (!isUuid(id)) return null;
       const [row] = await selectInfra(`id = $1 AND ${ACTIVE_ONLY}`, [id]);
-      return row ? toDomain(row) : null;
+      return row ? toStake(row) : null;
     },
 
     findByPatrickName: async (patrickName) => {
       const [row] = await selectInfra(`squadron = $1 AND ${ACTIVE_ONLY}`, [patrickName]);
-      return row ? toDomain(row) : null;
+      return row ? toStake(row) : null;
     },
   };
 };

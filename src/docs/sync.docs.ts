@@ -1,7 +1,12 @@
 import { z, registry } from 'config/openapi.config';
 import { HTTP_STATUS } from 'constants/http.constants';
 import { SYNC_ROUTES } from 'constants/sync.constants';
-import { EntityDeltaDtoSchema, RenderLayerDtoSchema, SyncStatusDtoSchema } from 'dtos/sync.dtos';
+import {
+  EntityDeltaDtoSchema,
+  EntityVersionDtoSchema,
+  RenderLayerDtoSchema,
+  SyncStatusDtoSchema,
+} from 'dtos/sync.dtos';
 
 const TAGS = { SYNC: 'Sync' } as const;
 
@@ -15,22 +20,6 @@ const PATHS = {
 } as const;
 
 const parentIdParam = z.string().uuid().openapi({ description: 'Mission id or stake id' });
-
-const EntityVersionDtoSchema = z
-  .object({
-    eventId: z.string().uuid(),
-    entityId: z.string().uuid(),
-    version: z.number().int(),
-    entityType: z.string(),
-    originNode: z.string(),
-    changeSeq: z.number().int(),
-    lastUpdateTime: z.coerce.date(),
-    isDeleted: z.boolean(),
-    isCurrent: z.boolean(),
-    geometry: z.unknown().nullable(),
-    properties: z.record(z.string(), z.unknown()).nullable(),
-  })
-  .openapi('EntityVersionDto');
 
 registry.registerPath({
   method: 'get',

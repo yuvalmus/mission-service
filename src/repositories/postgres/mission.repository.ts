@@ -3,27 +3,13 @@ import { PG_TABLES } from 'constants/postgres.constants';
 import { TransactionContext } from 'database/database.types';
 import { PostgresDatabase } from 'database/postgres.database';
 import { DatabaseOperationError } from 'errors/app.errors';
-import { Mission, MissionBase, MISSION_CONSTANTS, SonicMissionProperties } from 'models/mission.models';
+import { MissionRow, toMission, toMissionBase, toMissionValues } from 'mappers/mission-row.mapper';
 import { MissionRepository } from 'repositories/mission.repository.interface';
 import { escapeLikePattern, isUuid, LIKE_ESCAPE_CHARACTER } from 'utils/sql.util';
 
 export interface PostgresMissionRepositoryDeps {
   database: PostgresDatabase;
   nodeName: string;
-}
-
-export interface MissionRow {
-  id: string;
-  name: string;
-  version_number: number;
-  comment: string | null;
-  created_by: string | null;
-  mission_type: string | null;
-  password: string | null;
-  attached_mission_id: number | null;
-  sonic_properties: SonicMissionProperties | null;
-  date_created: Date;
-  last_update_time: Date;
 }
 
 const MISSION_PROJECTION = `
@@ -42,38 +28,6 @@ const MISSION_PROJECTION = `
 
 /** Soft-deleted missions are invisible to every read — see the top-down masking view. */
 const ACTIVE_ONLY = 'deleted_at IS NULL';
-
-const toBase = (row: MissionRow): MissionBase => ({
-  id: row.id,
-  timeInfo: { dateCreated: row.date_created, lastUpdateTime: row.last_update_time },
-  name: row.name,
-  comment: row.comment ?? '',
-  createdBy: row.created_by ?? '',
-  missionType: row.mission_type ?? '',
-  password: row.password ?? '',
-  attachedMissionId: row.attached_mission_id ?? undefined,
-});
-
-const toDomain = (row: MissionRow): Mission => ({
-  ...toBase(row),
-  versionNumber: row.version_number ?? MISSION_CONSTANTS.BASE_VERSION_NUMBER,
-  sonicProperties: row.sonic_properties ?? undefined,
-});
-
-const toValues = (mission: Mission, nodeName: string): unknown[] => [
-  mission.id,
-  mission.name,
-  mission.versionNumber,
-  mission.comment ?? null,
-  mission.createdBy ?? null,
-  mission.missionType ?? null,
-  mission.password ?? null,
-  mission.attachedMissionId ?? null,
-  mission.sonicProperties ? JSON.stringify(mission.sonicProperties) : null,
-  mission.timeInfo?.dateCreated ?? new Date(),
-  mission.timeInfo?.lastUpdateTime ?? new Date(),
-  nodeName,
-];
 
 const INSERT_MISSION = `
   INSERT INTO ${PG_TABLES.MISSIONS}
@@ -144,12 +98,12 @@ export const createPostgresMissionRepository = ({
 
   return {
     create: async (mission, context) => {
-      await query(INSERT_MISSION, toValues(mission, nodeName), context);
+      await query(INSERT_MISSION, toMissionValues(mission, nodeName), context);
       return mission;
     },
 
     update: async (mission, context) => {
-      await query(UPDATE_MISSION, toValues(mission, nodeName), context);
+      await query(UPDATE_MISSION, toMissionValues(mission, nodeName), context);
       return mission;
     },
 
@@ -162,17 +116,17 @@ export const createPostgresMissionRepository = ({
     findById: async (id) => {
       if (!isUuid(id)) return null;
       const [row] = await selectMissions(`id = $1 AND ${ACTIVE_ONLY}`, [id]);
-      return row ? toDomain(row) : null;
+      return row ? toMission(row) : null;
     },
 
     findByIds: async (ids) => {
       const rows = await selectMissions(`id = ANY($1::uuid[]) AND ${ACTIVE_ONLY}`, [ids.filter(isUuid)]);
-      return rows.map(toDomain);
+      return rows.map(toMission);
     },
 
     findAllBasic: async () => {
       const rows = await selectMissions(ACTIVE_ONLY);
-      return rows.map(toBase);
+      return rows.map(toMissionBase);
     },
 
     findAllNames: async () => {
@@ -195,7 +149,7 @@ export const createPostgresMissionRepository = ({
         `name ILIKE '%' || $1 || '%' ESCAPE '${LIKE_ESCAPE_CHARACTER}' AND ${ACTIVE_ONLY}`,
         [escapeLikePattern(name)],
       );
-      return rows.map(toBase);
+      return rows.map(toMissionBase);
     },
 
     delete: async (id, context) => {

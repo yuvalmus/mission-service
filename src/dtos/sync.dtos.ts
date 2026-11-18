@@ -104,3 +104,21 @@ export const SyncStatusDtoSchema = z
   .openapi('SyncStatusDto');
 
 export type SyncStatusDto = z.infer<typeof SyncStatusDtoSchema>;
+
+export const EntityVersionDtoSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    entityId: z.string().uuid(),
+    version: z.number().int(),
+    entityType: z.string(),
+    originNode: z.string(),
+    changeSeq: z.number().int(),
+    lastUpdateTime: z.coerce.date(),
+    isDeleted: z.boolean(),
+    isCurrent: z.boolean(),
+    geometry: z.unknown().nullable(),
+    properties: z.record(z.string(), z.unknown()).nullable(),
+  })
+  .openapi('EntityVersionDto');
+
+export type EntityVersionDto = z.infer<typeof EntityVersionDtoSchema>;
