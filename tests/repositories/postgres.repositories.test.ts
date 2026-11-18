@@ -136,7 +136,7 @@ describe('postgres repositories', () => {
       const deleted = await missionRepository().delete(MISSION_ID);
 
       const sql = normalizeSql(mock.value.lastQuery()?.sql ?? '');
-      expect(sql).toContain(`UPDATE ${PG_TABLES.MISSIONS} SET deleted_at = NOW()`);
+      expect(sql).toContain(`UPDATE ${PG_TABLES.MISSIONS} SET deleted_at = NOW(), last_update_time = NOW()`);
       expect(sql).not.toContain('DELETE');
       expect(deleted).toBe(true);
     });

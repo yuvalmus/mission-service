@@ -349,9 +349,16 @@ configuration rather than design choices:
    fails with _"may not be used as an output plugin"_. Set at cluster init, and only when the server
    has the setting, so older builds still start.
 
-A residual edge remains in the initial copy: if a joining station edits a row the survivor created
-in the seconds before the survivor's back-subscription is established, that copy collides. The
-window is one retry interval (15 seconds) after a station first joins.
+**The initial copy keeps the newer row instead of failing.** Each peer's initial copy is a snapshot
+taken at its own moment, so a row can change hands between two copies. For example, C copies a
+mission from A, B then writes to it, and C's copy from B carries the same row again. pglogical's
+initial copy does not resolve conflicts, so it failed on a duplicate key, and C's subscription to B
+stayed down for good. Any entity write moves its mission to the writing station, so a single write
+was enough. A `BEFORE INSERT` trigger on `missions`, `infra` and `entities` now checks whether the
+row already exists, keeps the one with the later `last_update_time`, and lets the copy continue. It
+is enabled for replication only (`ENABLE REPLICA`), so the service's own writes never run it.
+Masking a mission now also stamps `last_update_time`, so a mission deleted during that gap wins
+too. Like Last-Write-Wins, this relies on the stations' clocks agreeing.
 
 **Known limit with three stations: an edit that arrives before its create is dropped.** Each
 station sends only the rows it wrote last, and a station applies each peer's stream on its own. If

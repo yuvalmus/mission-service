@@ -60,7 +60,8 @@ const UPDATE_MISSION = `
  */
 const SOFT_DELETE_MISSION = `
   UPDATE ${PG_TABLES.MISSIONS}
-  SET deleted_at = NOW()
+  SET deleted_at = NOW(),
+      last_update_time = NOW()
   WHERE id = $1
     AND ${ACTIVE_ONLY}
   RETURNING id

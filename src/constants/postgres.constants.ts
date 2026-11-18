@@ -28,6 +28,7 @@ export const PG_FUNCTIONS = {
   STAMP_ORIGIN_NODE: 'stamp_origin_node',
   NOTIFY_ENTITY_CHANGE: 'notify_entity_change',
   NOTIFY_MISSION_CHANGE: 'notify_mission_change',
+  KEEP_NEWER_ON_COPY: 'keep_newer_on_copy',
 } as const;
 
 export const PG_TRIGGERS = {
@@ -37,6 +38,9 @@ export const PG_TRIGGERS = {
   MISSION_NOTIFY: 'trg_missions_notify',
   MISSION_ORIGIN: 'trg_missions_stamp_origin',
   INFRA_ORIGIN: 'trg_infra_stamp_origin',
+  MISSION_KEEP_NEWER: 'trg_missions_keep_newer_on_copy',
+  INFRA_KEEP_NEWER: 'trg_infra_keep_newer_on_copy',
+  ENTITY_KEEP_NEWER: 'trg_entities_keep_newer_on_copy',
 } as const;
 
 export const PG_EXTENSIONS = {

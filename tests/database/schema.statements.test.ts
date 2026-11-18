@@ -50,6 +50,27 @@ describe('buildSchemaStatements', () => {
     expect(all).toContain('ENABLE ALWAYS TRIGGER trg_entities_notify');
   });
 
+  it('keeps the newer row when a first copy from a peer meets a row this station already has', () => {
+    const fn = statements.find((s) => s.includes('FUNCTION keep_newer_on_copy()')) ?? '';
+    expect(fn).toContain('IF has_row IS NOT TRUE THEN RETURN NEW;');
+    expect(fn).toContain('IF NEW.last_update_time > existing_time THEN');
+    expect(fn).toContain('RETURN NULL;');
+    expect(all).toContain(
+      "BEFORE INSERT ON missions FOR EACH ROW EXECUTE FUNCTION keep_newer_on_copy('id')",
+    );
+    expect(all).toContain("BEFORE INSERT ON infra FOR EACH ROW EXECUTE FUNCTION keep_newer_on_copy('id')");
+    expect(all).toContain(
+      "BEFORE INSERT ON entities FOR EACH ROW EXECUTE FUNCTION keep_newer_on_copy('entity_id')",
+    );
+    expect(all).not.toContain('BEFORE INSERT ON route_backups');
+  });
+
+  it('runs the copy check only for rows written by replication', () => {
+    expect(all).toContain('ALTER TABLE missions ENABLE REPLICA TRIGGER trg_missions_keep_newer_on_copy');
+    expect(all).toContain('ALTER TABLE infra ENABLE REPLICA TRIGGER trg_infra_keep_newer_on_copy');
+    expect(all).toContain('ALTER TABLE entities ENABLE REPLICA TRIGGER trg_entities_keep_newer_on_copy');
+  });
+
   it('indexes the history by entity time, parent number and entity origin number', () => {
     expect(all).toContain('idx_route_backups_entity_time ON route_backups (entity_id, last_update_time DESC)');
     expect(all).toContain('idx_route_backups_mission_seq ON route_backups (mission_id, mission_change_seq DESC)');
